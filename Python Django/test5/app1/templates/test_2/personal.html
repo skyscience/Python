@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<title>星云拍卖 - 个人中心</title>
+<script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+<link href="https://cdn.bootcss.com/bootstrap/4.1.0/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.12/css/all.css" integrity="sha384-G0fIWCsCzJIMAVNQPfjH08cyYaUtMwjJwqiRKxxE/rx96Uroj1BtIQ6MLJuheaO9" crossorigin="anonymous">
+<link href="/static/res/css/personal.css" rel="stylesheet">
+<script src="https://cdn.bootcss.com/bootstrap/4.1.0/js/bootstrap.min.js"></script>
+<script src="https://cdn.bootcss.com/lodash.js/4.17.10/lodash.min.js"></script>
+<script src="https://cdn.bootcss.com/holder/2.9.4/holder.min.js"></script>
+<script src="https://cdn.bootcss.com/bignumber.js/7.0.1/bignumber.min.js"></script>
+<script src=/static/res/js/nebulas.js></script>
+<script src=/static/res/js/nebPay.js></script>
+<script src=/static/res/js/config.js></script>
+<script src=/static/res/js/personal.js></script>
+</head>
+<body class="bg-light">
+		<header>
+				<div class="navbar navbar-dark bg-dark box-shadow "
+					style="background-color: #2275d4 !important;">
+					<div class="container d-flex justify-content-between">
+						<div class="col-sm-2">
+							<a href="index.html" class="navbar-brand d-flex align-items-center"
+								style="line-height: 40px;"> <p>😊</p><strong
+								style="display: block; padding-left: 10px;">星云拍卖</strong>
+							</a>
+						</div>
+						<div class="col-sm-10">
+							<nav
+								class="navbar navbar-expand-lg navbar-light bg-light float-right"
+								style="background-color: #2275d4 !important; color: #fff;">
+								<button class="navbar-toggler float-right" type="button"
+									data-toggle="collapse" data-target="#navbarText"
+									aria-controls="navbarText" aria-expanded="false"
+									aria-label="Toggle navigation">
+									<span class="navbar-toggler-icon"></span>
+								</button>
+								<div class="collapse navbar-collapse" id="navbarText">
+									<ul class="navbar-nav mr-auto">
+										<li class="nav-item active"><a class="nav-link" href="index.html">首页</a></li>
+										<li class="nav-item"><a class="nav-link" href="#" onclick="publicShare();return false;">发起拍卖</a></li>
+										<li class="nav-item"><a class="nav-link" href="personal.html">个人中心</a></li>
+										<li class="nav-item"><a class="nav-link" href="about.html">关于</a></li>
+									</ul>
+								</div>
+							</nav>
+						</div>
+					</div>
+				</div>
+			</header>
+
+	<main role="main">
+		<div class="container-fluid">
+			<div class='m-0 p-0 personalConfirm justify-content-between my-auto d-none' >
+			      <div class="text-center mb-4 mt-5">
+			        <h1 class="h3 mb-3 font-weight-normal">
+			        	<span style="padding-left: 10px;">星云拍卖</span>
+			        </h1>
+			        <p>个人中心数据需要用户授权链上数据，请您点击下方<code>确认授权</code>按钮拉取个人数据。</p>
+			      </div>
+			      <button class="btn btn-lg btn-primary d-block mx-auto" id="pullPersonalData">确认授权</button>
+			</div>
+			<div class='m-0 p-0 personalDataContainer justify-content-between my-auto'>
+			      <div class="text-center mb-4 mt-1 px-3">
+				        <div class="ipubs box-shadow">
+				        	<div class='row px-3'>
+				        		<span class="col-sm-4 ">钱包:<small id='p_wallet'></small></span>
+				        		<span class="col-sm-4">余额:<strong id="p_balance">0.00</strong><small>NAS</small><button onclick="openTakeout();" type="button" class="btn btn-outline-secondary border-0">提现</button></span>
+				        	</div>
+				        	<div class='row px-3'>
+					        	<span class="col-sm-4">发起拍卖:<strong id="p_sharesNum">0</strong>次</span>
+					        	<span class="col-sm-4">交易总金额:<strong id="p_reward">0.00</strong><small>NAS</small></span>
+					        	<span class="col-sm-4">获得回复:<strong id="p_reply">0</strong>次</span>
+				        	</div>
+				        </div>
+			        </div>
+					<div class="mod-borrow box-shadow mt-3">
+						<div class="hd">
+							<span><i class="icon icon-ttyx"></i>我的拍卖</span>
+						</div>
+						<div class="bd px-3">
+							<div class="subtitle text-left pl-3">如果您认为拍卖无法继续发起，请执行停止该操作</div>
+							<div class="container-fluid px-0 p_sharesContainer">
+								<div class="alert alert-warning w-100 my-2 lodingdiv" role="alert">
+								  正在努力加载中......
+								</div>
+							</div>
+							<small class="d-block text-right mt-3"> 
+								<a href="javascript:void(0);return false;" 
+									onclick="initPersonalShareDisplay(this);return false;">more</a></small>
+						</div>
+					</div>
+					<!--  -->
+					<div class="mod-borrow box-shadow mt-3">
+						<div class="hd">
+							<span><i class="icon icon-zj"></i>资金记录</span>
+						</div>
+						<div class="bd px-3">
+							<div class="subtitle text-left pl-3">竞拍时会扣除1%的手续费，下表展示的竞拍金额包含手续费。</div>
+							<div class="container-fluid px-0 acctlogContainer">
+								<div class="alert alert-warning w-100 my-2 lodingdiv" role="alert">
+								  正在努力加载中......
+								</div>
+							</div>
+							<small class="d-block text-right mt-3"> 
+								<a href="javascript:void(0);return false;" 
+									onclick="initPersonalAcctlogDisplay(this);return false;">more</a></small>
+						</div>
+					</div>
+			</div>
+		</div>
+	</main>
+
+	<!-- 页尾 -->
+	<footer class="text-muted">
+			<div class="container align-middle text-center"
+				style="height: 60px; line-height: 60px;">
+				©天空科技 2018<img onclick="window.open('https://nebulas.io/');"
+					src="/static/res/imgs/nebulasx60.png" width=100 height=25
+					style="cursor: pointer;">
+			</div>
+		</footer>
+
+
+	
+	<!-- Modal -->
+	<div class="modal fade" id="modal1" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+	  <div class="modal-dialog modal-lg" role="document">
+	    <div class="modal-content">
+	      <div class="modal-header">
+	        <h5 class="modal-title">title</h5>
+	        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+	          <span aria-hidden="true">&times;</span>
+	        </button>
+	      </div>
+	      <div class="modal-body">
+	        content
+	      </div>
+	    </div>
+	  </div>
+	</div>
+	
+</body>
+</html>

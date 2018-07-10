@@ -1,0 +1,140 @@
+input {
+    outline: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: 100%;
+    font: inherit;
+    vertical-align: baseline;
+}
+a {
+    font-family: "Microsoft yahei","PingFangSC-Regular";
+    color: #000;
+    text-decoration: none !important;
+}
+.box-shadow { box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .05); }
+p {
+    position:relative;
+    line-height:1.6em;
+    max-height:4.8em;
+    overflow:hidden;
+}
+p::after {
+    font-weight:bold;
+    position:absolute;
+    bottom:0;
+    right:0;
+    padding:0px;
+}
+.ipubs{
+	margin: 20px auto 0;
+    padding: 10px 20px;
+    background: #fff;
+}
+.ipubs span {
+    padding-left: 0;
+    padding-right: 0;
+    display: inline-block;
+    color: #777;
+    text-align: left;
+}
+.ipubs strong {
+    color: #f60;
+    display: inline;
+    font-size: 16px;
+    font-weight: 400;
+    margin: 0 5px;
+    position: relative;
+    top: 2px;
+}
+a {
+    color: #333;
+    text-decoration: none;
+}
+.mod-borrow {
+	
+    background: #FFF;
+    border: 1px solid #ebebeb;
+}
+.mod-borrow .hd {
+    height: 60px;
+    line-height: 60px;
+    position: relative;
+}
+.mod-borrow .hd span {
+    font-size: 20px;
+    width: 210px;
+    height: 60px;
+    background: url(../imgs/home_sprite.png);
+    float: left;
+    margin-left: -10px;
+    line-height: 60px;
+    color: #FFF;
+    text-indent: 75px;
+}
+.mod-borrow .hd .icon {
+    background: url(../imgs/home_sprite.png);
+    position: absolute;
+}
+.mod-borrow .hd .icon-ttyx {
+    width: 28px;
+    height: 32px;
+    background-position: -280px 0;
+    left: 20px;
+    top: 8px;
+}
+.mod-borrow .hd .icon-zj {
+    width: 35px;
+    height: 32px;
+    background-position: -315px 0;
+    left: 20px;
+    top: 8px;
+}
+.mod-borrow .subtitle {
+    height: 33px;
+    border-top: 1px solid #e8e8e8;
+    border-bottom: 1px solid #e8e8e8;
+    line-height: 33px;
+    background: #FFF;
+    font-size: 14px;
+    color: #999;
+}
+.sharetitle{
+	cursor:pointer;
+}
+#createtime{
+	display: inline-block;
+	width:110px;
+	text-align:center;
+}
+.status{
+	display: inline-block;
+	padding:0px 10px 0px 5px;
+	text-align:center;
+	cursor:pointer;
+}
+.editShare{
+	display: inline-block;
+	padding:0px 10px 0px 5px;
+	text-align:center;
+	cursor:pointer;
+}
+.reply{
+	display: inline-block;
+	padding:0px 10px 0px 5px;
+	text-align:center;
+	cursor:pointer;
+}
+.reward{
+	display: inline-block;
+	padding:0px 10px 0px 5px;
+	text-align:center;
+	cursor:pointer;
+}
+.td-nobr{
+	white-space: nowrap;/*控制单行显示*/
+	overflow: hidden;/*超出隐藏*/
+	text-overflow: ellipsis;/*隐藏的字符用省略号表示*/
+}
+
+

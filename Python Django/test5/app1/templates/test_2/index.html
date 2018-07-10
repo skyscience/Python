@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<title>星云拍卖 - 首页</title>
+
+<link href="https://cdn.bootcss.com/bootstrap/4.1.0/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.12/css/all.css" integrity="sha384-G0fIWCsCzJIMAVNQPfjH08cyYaUtMwjJwqiRKxxE/rx96Uroj1BtIQ6MLJuheaO9" crossorigin="anonymous">
+<link href="/static/res/css/index.css" rel="stylesheet">
+
+<script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+<script src="https://cdn.bootcss.com/bootstrap/4.1.0/js/bootstrap.min.js"></script>
+<script src="https://cdn.bootcss.com/lodash.js/4.17.10/lodash.min.js"></script>
+<script src="https://cdn.bootcss.com/holder/2.9.4/holder.min.js"></script>
+<script src="https://cdn.bootcss.com/bignumber.js/7.0.1/bignumber.min.js"></script>
+<script src=/static/res/js/nebulas.js></script>
+<script src=/static/res/js/nebPay.js></script>
+<script src=/static/res/js/config.js></script>
+<script src=/static/res/js/index.js></script>
+</head>
+
+
+
+
+<body class="bg-light">
+	<header>
+		<div class="navbar navbar-dark bg-dark box-shadow "
+			style="background-color: #2275d4 !important;">
+			<div class="container d-flex justify-content-between">
+				<div class="col-sm-2">
+					<a href="index.html" class="navbar-brand d-flex align-items-center"
+						style="line-height: 40px;"> <p>😊</p><strong
+						style="display: block; padding-left: 10px;">星云拍卖</strong>
+					</a>
+				</div>
+				<div class="col-sm-10">
+					<nav
+						class="navbar navbar-expand-lg navbar-light bg-light float-right"
+						style="background-color: #2275d4 !important; color: #fff;">
+						<button class="navbar-toggler float-right" type="button"
+							data-toggle="collapse" data-target="#navbarText"
+							aria-controls="navbarText" aria-expanded="false"
+							aria-label="Toggle navigation">
+							<span class="navbar-toggler-icon"></span>
+						</button>
+						<div class="collapse navbar-collapse" id="navbarText">
+							<ul class="navbar-nav mr-auto">
+								<li class="nav-item active"><a class="nav-link" href="index.html">首页</a></li>
+								<li class="nav-item"><a class="nav-link" href="#" onclick="publicShare();return false;">发起拍卖</a></li>
+								<li class="nav-item"><a class="nav-link" href="personal.html">个人中心</a></li>
+								<li class="nav-item"><a class="nav-link" href="about.html">关于</a></li>
+							</ul>
+						</div>
+					</nav>
+				</div>
+			</div>
+		</div>
+	</header>
+
+
+
+
+	<main role="main">
+	<div class="container-fluid tpl-banner">
+		<!-- 搜索 -->
+			<div class="col-sm-6 tpl-search-box mx-auto">
+				<div class="col-sm-10 p-0 float-left">
+					<input type="text" id="keyword" placeholder="输入关键词 快速搜索">
+				</div>
+				<div class="col-sm-2 p-0 float-right search-btn">
+					<i class="fas fa-search"></i>搜索
+				</div>
+			</div>
+		</div>
+	</div>
+
+
+
+
+	<div class="container-fluid">
+		<!-- 提示 -->
+		<div class="alert alert-warning alert-dismissible fade show mb-0 mt-3" role="alert">
+		  <strong>温馨提示!</strong> 本站部分操作需要星云钱包插件支持！插件安装请移步至 <a target="_blank" href="https://github.com/ChengOrangeJu/WebExtensionWallet">WebExtensionWallet</a> 。请稍后刷新查看。
+		  <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+		    <span aria-hidden="true">&times;</span>
+		  </button>
+		</div>
+
+
+
+
+		<div class="row px-3 indexDefault">
+			<!-- 最新 -->
+			<div class="col-sm-6">
+				<div class="my-3 p-3 bg-white rounded box-shadow">
+					<h6 class="border-bottom border-gray pb-2 mb-0">最新拍卖</h6>
+					<div class="m-0 p-0 col-sm-12 newShareContainer">
+						<div class="alert alert-warning w-100 my-2 lodingdiv" role="alert">
+						  正在链上努力查询中......
+						</div>
+					</div>
+					<small class="d-block text-right mt-3"> <a href="javascript:void(0);return false;" onclick="pullRecentlyShares(this);return false;">more</a></small>
+				</div>
+			</div>
+			<!-- 热门 -->
+			<div class="col-sm-6">
+				<div class="my-3 p-3 bg-white rounded box-shadow">
+					<h6 class="border-bottom border-gray pb-2 mb-0">热门拍卖</h6>
+					<div class="m-0 p-0 col-sm-12 fireShareContainer">
+						<div class="alert alert-warning w-100 my-2 lodingdiv" role="alert">
+						  正在链上努力查询中......
+						</div>
+					</div>
+					<small class="d-block text-right mt-3"> <a href="javascript:void(0);return false;" onclick="pullFireShares(this);return false;">more</a></small>
+				</div>
+			</div>
+		</div>
+		
+		<div class="row px-3 searchContainer" style="display:none;">
+			<div class="col-sm-12">
+				<div class="my-3 p-3 bg-white rounded box-shadow">
+					<h6 class="border-bottom border-gray pb-2 mb-0">查询结果</h6>
+					<div class="m-0 p-0 col-sm-12 searchShareContainer">
+						<div class="alert alert-warning w-100 my-2 lodingdiv" role="alert">
+						  正在链上努力查询中......
+						</div>
+					</div>
+					<small class="d-block text-right mt-3"> <a href="javascript:void(0);return false;" onclick="pullSearchShares(this);return false;">more</a></small>
+				</div>
+			</div>
+		</div>
+	</div>
+	</main>
+
+	<!-- 页尾 -->
+	<footer class="text-muted">
+		<div class="container align-middle text-center"
+			style="height: 60px; line-height: 60px;">
+			©天空科技 2018<img onclick="window.open('https://nebulas.io/');"
+				src="/static/res/imgs/nebulasx60.png" width=100 height=25
+				style="cursor: pointer;">
+		</div>
+	</footer>
+	
+
+	<!-- 发起拍卖弹窗 -->
+	<div class="modal fade" id="modal1" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+	  <div class="modal-dialog modal-lg" role="document">
+	    <div class="modal-content">
+	      <div class="modal-header">
+	        <h5 class="modal-title">title</h5>
+	        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+	          <span aria-hidden="true">&times;</span>
+	        </button>
+	      </div>
+	      <div class="modal-body">
+	        content
+	      </div>
+	    </div>
+	  </div>
+	</div>
+	
+</body>
+</html>
