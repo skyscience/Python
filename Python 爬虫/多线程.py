@@ -1,26 +1,32 @@
 import threading
 import time
 
-def run():
-    time.sleep(2)  #睡眠2秒
-    print("\t>_"+threading.current_thread().name)
-    time.sleep(2)  
-
-
-
 start_time = time.time()
 thread_list = []
 
 
 
+def run():
+    i = 0
+    print(">_"+threading.current_thread().name)
+    while True:
+        i += 1
+        if i == 25000000:
+            print('== ok ==')
+            print('I:',i)
+            break
+    
+
+
 # 创建线程 加入队列
-for i in range(5):
-    t = threading.Thread(target=run,name=('线程'+str(i)))
+for i in range(4):
+    t = threading.Thread(target=run,name=('线程'+str(i+1)))
     thread_list.append(t)
 
 # 不避开其它线程
-    # for i in range(5):
-    #     run()
+# for i in range(4):
+#     run()
+
 
 
 
@@ -38,11 +44,12 @@ for thread in thread_list:
     thread.setDaemon(True) #设置线程守护
     thread.start()
 
+
 # 可以看到，主线程一直等待全部的子线程结束之后，主线程自身才结束，程序退出
 for thread in thread_list:
     # 将子线程加入主线程
     thread.join()
 
 
-print('jc3',threading.current_thread().name)
-print('jc2',time.time() - start_time)
+# print('jc3',threading.current_thread().name)
+print('耗时',time.time() - start_time)
