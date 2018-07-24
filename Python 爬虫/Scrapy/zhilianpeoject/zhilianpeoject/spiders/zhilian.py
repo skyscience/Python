@@ -8,7 +8,7 @@ class ZhilianSpider(scrapy.Spider):
     #allowed_domains:允许爬取的域，可以有多个，你要抓取的ｕｒｌ必须在你设置的域，
     allowed_domains = ['zhaopin.com']
     #start_urls:设置爬虫的起始任务，存放的是目标链接，可以有多个
-    start_urls = ['https://sou.zhaopin.com/jobs/searchresult.ashx?jl=%E5%8C%97%E4%BA%AC&kw=%E6%8A%80%E6%9C%AF&sm=0&sg=de41ce9d23e64b80bb1305ce3d0fcf57&p=1']
+    start_urls = ['http://blog.jobbole.com/all-posts/']
 
     # parse解析的方法，我们下载器下载好任务（得到的响应response）
     def parse(self, response):
@@ -54,4 +54,3 @@ class ZhilianSpider(scrapy.Spider):
         # print(item)
         yield item
         # pass
-

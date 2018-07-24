@@ -1,0 +1,1187 @@
+bookmark_nums,comment_nums,content,create_date,front_image_path,front_image_url,praise_nums,tags,title,url,url_object_id
+0,0,"<div class=""entry"">
+
+        			<div class=""textwidget""></div>
+		
+		<div class=""copyright-area"">原文出处： <a ref=""nofollow"" target=""_blank"" href=""https://www.linux.com/learn/intro-to-linux/2018/3/simple-load-balancing-dns-linux"">Carla Shroder</a>   译文出处：<a target=""_blank"" href=""https://linux.cn/article-9777-1.html"">Linux中国/qhwdw</a>   </div><blockquote><p>DNS 轮询将多个服务器映射到同一个主机名，并没有为这里展示的魔法做更多的工作。</p></blockquote>
+<p>如果你的后端服务器是由多台服务器构成的，比如集群化或者镜像的 Web 或者文件服务器，通过负载均衡器提供了单一的入口点。业务繁忙的大型电商在高端负载均衡器上花费了大量的资金，用它来执行各种各样的任务：代理、缓存、状况检查、SSL 处理、可配置的优先级、流量整形等很多任务。</p>
+<p>但是你并不需要做那么多工作的负载均衡器。你需要的是一个跨服务器分发负载的简单方法，它能够提供故障切换，并且不太在意它是否高效和完美。DNS 轮询和使用轮询的子域委派是实现这个目标的两种简单方法。</p>
+<p>DNS 轮询是将多台服务器映射到同一个主机名上，当用户访问 <code>foo.example.com</code> 时多台服务器都可用于处理它们的请求，使用的就是这种方式。</p>
+<p>当你有多个子域或者你的服务器在地理上比较分散时，使用轮询的子域委派就比较有用。你有一个主域名服务器，而子域有它们自己的域名服务器。你的主域名服务器将所有的到子域的请求指向到它们自己的域名服务器上。这将提升响应时间，因为 DNS 协议会自动查找最快的链路。</p>
+<h3 id=""toc_1"">DNS 轮询</h3>
+<p>轮询和旅鸫鸟robins没有任何关系，据我相熟的图书管理员说，它最初是一个法语短语，<em>ruban rond</em>、或者 <em>round ribbon</em>。很久以前，法国政府官员以不分级的圆形、波浪线、或者直线形状来在请愿书上签字，以盖住原来的发起人。</p>
+<p>DNS 轮询也是不分级的，简单配置一个服务器列表，然后将请求转到每个服务器上。它并不做真正的负载均衡，因为它根本就不测量负载，也没有状况检查，因此如果一个服务器宕机，请求仍然会发送到那个宕机的服务器上。它的优点就是简单。如果你有一个小的文件或者 Web 服务器集群，想通过一个简单的方法在它们之间分散负载，那么 DNS 轮询很适合你。</p>
+<p>你所做的全部配置就是创建多条 A 或者 AAAA 记录，映射多台服务器到单个的主机名。这个 BIND 示例同时使用了 IPv4 和 IPv6 私有地址类：</p><!-- Crayon Syntax Highlighter v2.7.1.1 -->
+
+		<div id=""crayon-5b5579a50537e783469175"" class=""crayon-syntax crayon-theme-github crayon-font-monaco crayon-os-pc print-yes notranslate"" data-settings="" minimize scroll-always"" style="" margin-top: 12px; margin-bottom: 12px; font-size: 13px !important; line-height: 15px !important;"">
+		
+			<div class=""crayon-toolbar"" data-settings="" show"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><span class=""crayon-title""></span>
+			<div class=""crayon-tools"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><div class=""crayon-button crayon-nums-button"" title=""切换是否显示行编号""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-plain-button"" title=""纯文本显示代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-wrap-button"" title=""切换自动换行""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-expand-button"" title=""点击展开代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-copy-button"" title=""复制代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-popup-button"" title=""在新窗口中显示代码""><div class=""crayon-button-icon""></div></div></div></div>
+			<div class=""crayon-info"" style=""min-height: 18.2px !important; line-height: 18.2px !important;""></div>
+			<div class=""crayon-plain-wrap""><textarea wrap=""soft"" class=""crayon-plain print-no"" data-settings=""dblclick"" readonly style=""-moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4; font-size: 13px !important; line-height: 15px !important;"">
+fileserv.example.com. IN A 172.16.10.10
+fileserv.example.com. IN A 172.16.10.11
+fileserv.example.com. IN A 172.16.10.12
+
+fileserv.example.com. IN AAAA fd02:faea:f561:8fa0:1::10
+fileserv.example.com. IN AAAA fd02:faea:f561:8fa0:1::11
+fileserv.example.com. IN AAAA fd02:faea:f561:8fa0:1::12
+</textarea></div>
+			<div class=""crayon-main"" style="""">
+				<table class=""crayon-table"">
+					<tr class=""crayon-row"">
+				<td class=""crayon-nums "" data-settings=""show"">
+					<div class=""crayon-nums-content"" style=""font-size: 13px !important; line-height: 15px !important;""><div class=""crayon-num"" data-line=""crayon-5b5579a50537e783469175-1"">1</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a50537e783469175-2"">2</div><div class=""crayon-num"" data-line=""crayon-5b5579a50537e783469175-3"">3</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a50537e783469175-4"">4</div><div class=""crayon-num"" data-line=""crayon-5b5579a50537e783469175-5"">5</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a50537e783469175-6"">6</div><div class=""crayon-num"" data-line=""crayon-5b5579a50537e783469175-7"">7</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a50537e783469175-8"">8</div></div>
+				</td>
+						<td class=""crayon-code""><div class=""crayon-pre"" style=""font-size: 13px !important; line-height: 15px !important; -moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4;""><div class=""crayon-line"" id=""crayon-5b5579a50537e783469175-1""><span class=""crayon-v"">fileserv</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span><span class=""crayon-h""> </span><span class=""crayon-st"">IN</span><span class=""crayon-h""> </span><span class=""crayon-i"">A</span><span class=""crayon-h""> </span><span class=""crayon-cn"">172.16.10.10</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a50537e783469175-2""><span class=""crayon-v"">fileserv</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span><span class=""crayon-h""> </span><span class=""crayon-st"">IN</span><span class=""crayon-h""> </span><span class=""crayon-i"">A</span><span class=""crayon-h""> </span><span class=""crayon-cn"">172.16.10.11</span></div><div class=""crayon-line"" id=""crayon-5b5579a50537e783469175-3""><span class=""crayon-v"">fileserv</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span><span class=""crayon-h""> </span><span class=""crayon-st"">IN</span><span class=""crayon-h""> </span><span class=""crayon-i"">A</span><span class=""crayon-h""> </span><span class=""crayon-cn"">172.16.10.12</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a50537e783469175-4""> </div><div class=""crayon-line"" id=""crayon-5b5579a50537e783469175-5""><span class=""crayon-v"">fileserv</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span><span class=""crayon-h""> </span><span class=""crayon-st"">IN</span><span class=""crayon-h""> </span><span class=""crayon-e"">AAAA </span><span class=""crayon-v"">fd02</span><span class=""crayon-o"">:</span><span class=""crayon-v"">faea</span><span class=""crayon-o"">:</span><span class=""crayon-v"">f561</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">8fa0</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">1</span><span class=""crayon-o"">::</span><span class=""crayon-cn"">10</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a50537e783469175-6""><span class=""crayon-v"">fileserv</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span><span class=""crayon-h""> </span><span class=""crayon-st"">IN</span><span class=""crayon-h""> </span><span class=""crayon-e"">AAAA </span><span class=""crayon-v"">fd02</span><span class=""crayon-o"">:</span><span class=""crayon-v"">faea</span><span class=""crayon-o"">:</span><span class=""crayon-v"">f561</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">8fa0</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">1</span><span class=""crayon-o"">::</span><span class=""crayon-cn"">11</span></div><div class=""crayon-line"" id=""crayon-5b5579a50537e783469175-7""><span class=""crayon-v"">fileserv</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span><span class=""crayon-h""> </span><span class=""crayon-st"">IN</span><span class=""crayon-h""> </span><span class=""crayon-e"">AAAA </span><span class=""crayon-v"">fd02</span><span class=""crayon-o"">:</span><span class=""crayon-v"">faea</span><span class=""crayon-o"">:</span><span class=""crayon-v"">f561</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">8fa0</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">1</span><span class=""crayon-o"">::</span><span class=""crayon-cn"">12</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a50537e783469175-8""> </div></div></td>
+					</tr>
+				</table>
+			</div>
+		</div>
+<!-- [Format Time: 0.0021 seconds] -->
+<p>Dnsmasq 在 <code>/etc/hosts</code> 文件中保存 A 和 AAAA 记录：</p><!-- Crayon Syntax Highlighter v2.7.1.1 -->
+
+		<div id=""crayon-5b5579a505388030353804"" class=""crayon-syntax crayon-theme-github crayon-font-monaco crayon-os-pc print-yes notranslate"" data-settings="" minimize scroll-always"" style="" margin-top: 12px; margin-bottom: 12px; font-size: 13px !important; line-height: 15px !important;"">
+		
+			<div class=""crayon-toolbar"" data-settings="" show"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><span class=""crayon-title""></span>
+			<div class=""crayon-tools"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><div class=""crayon-button crayon-nums-button"" title=""切换是否显示行编号""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-plain-button"" title=""纯文本显示代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-wrap-button"" title=""切换自动换行""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-expand-button"" title=""点击展开代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-copy-button"" title=""复制代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-popup-button"" title=""在新窗口中显示代码""><div class=""crayon-button-icon""></div></div></div></div>
+			<div class=""crayon-info"" style=""min-height: 18.2px !important; line-height: 18.2px !important;""></div>
+			<div class=""crayon-plain-wrap""><textarea wrap=""soft"" class=""crayon-plain print-no"" data-settings=""dblclick"" readonly style=""-moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4; font-size: 13px !important; line-height: 15px !important;"">
+172.16.1.10 fileserv fileserv.example.com
+172.16.1.11 fileserv fileserv.example.com
+172.16.1.12 fileserv fileserv.example.com
+fd02:faea:f561:8fa0:1::10 fileserv fileserv.example.com
+fd02:faea:f561:8fa0:1::11 fileserv fileserv.example.com
+fd02:faea:f561:8fa0:1::12 fileserv fileserv.example.com
+</textarea></div>
+			<div class=""crayon-main"" style="""">
+				<table class=""crayon-table"">
+					<tr class=""crayon-row"">
+				<td class=""crayon-nums "" data-settings=""show"">
+					<div class=""crayon-nums-content"" style=""font-size: 13px !important; line-height: 15px !important;""><div class=""crayon-num"" data-line=""crayon-5b5579a505388030353804-1"">1</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a505388030353804-2"">2</div><div class=""crayon-num"" data-line=""crayon-5b5579a505388030353804-3"">3</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a505388030353804-4"">4</div><div class=""crayon-num"" data-line=""crayon-5b5579a505388030353804-5"">5</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a505388030353804-6"">6</div><div class=""crayon-num"" data-line=""crayon-5b5579a505388030353804-7"">7</div></div>
+				</td>
+						<td class=""crayon-code""><div class=""crayon-pre"" style=""font-size: 13px !important; line-height: 15px !important; -moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4;""><div class=""crayon-line"" id=""crayon-5b5579a505388030353804-1""><span class=""crayon-cn"">172.16.1.10</span><span class=""crayon-h""> </span><span class=""crayon-e"">fileserv </span><span class=""crayon-v"">fileserv</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-i"">com</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a505388030353804-2""><span class=""crayon-cn"">172.16.1.11</span><span class=""crayon-h""> </span><span class=""crayon-e"">fileserv </span><span class=""crayon-v"">fileserv</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-i"">com</span></div><div class=""crayon-line"" id=""crayon-5b5579a505388030353804-3""><span class=""crayon-cn"">172.16.1.12</span><span class=""crayon-h""> </span><span class=""crayon-e"">fileserv </span><span class=""crayon-v"">fileserv</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-e"">com</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a505388030353804-4""><span class=""crayon-v"">fd02</span><span class=""crayon-o"">:</span><span class=""crayon-v"">faea</span><span class=""crayon-o"">:</span><span class=""crayon-v"">f561</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">8fa0</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">1</span><span class=""crayon-o"">::</span><span class=""crayon-cn"">10</span><span class=""crayon-h""> </span><span class=""crayon-e"">fileserv </span><span class=""crayon-v"">fileserv</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-e"">com</span></div><div class=""crayon-line"" id=""crayon-5b5579a505388030353804-5""><span class=""crayon-v"">fd02</span><span class=""crayon-o"">:</span><span class=""crayon-v"">faea</span><span class=""crayon-o"">:</span><span class=""crayon-v"">f561</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">8fa0</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">1</span><span class=""crayon-o"">::</span><span class=""crayon-cn"">11</span><span class=""crayon-h""> </span><span class=""crayon-e"">fileserv </span><span class=""crayon-v"">fileserv</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-e"">com</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a505388030353804-6""><span class=""crayon-v"">fd02</span><span class=""crayon-o"">:</span><span class=""crayon-v"">faea</span><span class=""crayon-o"">:</span><span class=""crayon-v"">f561</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">8fa0</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">1</span><span class=""crayon-o"">::</span><span class=""crayon-cn"">12</span><span class=""crayon-h""> </span><span class=""crayon-e"">fileserv </span><span class=""crayon-v"">fileserv</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-i"">com</span></div><div class=""crayon-line"" id=""crayon-5b5579a505388030353804-7""> </div></div></td>
+					</tr>
+				</table>
+			</div>
+		</div>
+<!-- [Format Time: 0.0019 seconds] -->
+<p>请注意这些示例都是很简化的，解析完全合格域名有多种方法，因此，关于如何配置 DNS 请自行学习。</p>
+<p>使用 <code>dig</code> 命令去检查你的配置能否按预期工作。将 <code>ns.example.com</code> 替换为你的域名服务器：</p><!-- Crayon Syntax Highlighter v2.7.1.1 -->
+
+		<div id=""crayon-5b5579a50538c831927585"" class=""crayon-syntax crayon-theme-github crayon-font-monaco crayon-os-pc print-yes notranslate"" data-settings="" minimize scroll-always"" style="" margin-top: 12px; margin-bottom: 12px; font-size: 13px !important; line-height: 15px !important;"">
+		
+			<div class=""crayon-toolbar"" data-settings="" show"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><span class=""crayon-title""></span>
+			<div class=""crayon-tools"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><div class=""crayon-button crayon-nums-button"" title=""切换是否显示行编号""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-plain-button"" title=""纯文本显示代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-wrap-button"" title=""切换自动换行""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-expand-button"" title=""点击展开代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-copy-button"" title=""复制代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-popup-button"" title=""在新窗口中显示代码""><div class=""crayon-button-icon""></div></div></div></div>
+			<div class=""crayon-info"" style=""min-height: 18.2px !important; line-height: 18.2px !important;""></div>
+			<div class=""crayon-plain-wrap""><textarea wrap=""soft"" class=""crayon-plain print-no"" data-settings=""dblclick"" readonly style=""-moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4; font-size: 13px !important; line-height: 15px !important;"">
+$ dig @ns.example.com fileserv A fileserv AAA
+</textarea></div>
+			<div class=""crayon-main"" style="""">
+				<table class=""crayon-table"">
+					<tr class=""crayon-row"">
+				<td class=""crayon-nums "" data-settings=""show"">
+					<div class=""crayon-nums-content"" style=""font-size: 13px !important; line-height: 15px !important;""><div class=""crayon-num"" data-line=""crayon-5b5579a50538c831927585-1"">1</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a50538c831927585-2"">2</div></div>
+				</td>
+						<td class=""crayon-code""><div class=""crayon-pre"" style=""font-size: 13px !important; line-height: 15px !important; -moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4;""><div class=""crayon-line"" id=""crayon-5b5579a50538c831927585-1""><span class=""crayon-sy"">$</span><span class=""crayon-h""> </span><span class=""crayon-i"">dig</span><span class=""crayon-h""> </span><span class=""crayon-sy"">@</span><span class=""crayon-v"">ns</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-e"">com </span><span class=""crayon-i"">fileserv</span><span class=""crayon-h""> </span><span class=""crayon-i"">A</span><span class=""crayon-h""> </span><span class=""crayon-e"">fileserv </span><span class=""crayon-i"">AAA</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a50538c831927585-2""> </div></div></td>
+					</tr>
+				</table>
+			</div>
+		</div>
+<!-- [Format Time: 0.0007 seconds] -->
+<p>它将同时显示出 IPv4 和 IPv6 的轮询记录。</p>
+<h3 id=""toc_2"">子域委派和轮询</h3>
+<p>子域委派结合轮询要做的配置会更多，但是这样有一些好处。当你有多个子域或者地理位置比较分散的服务器时，就应该去使用它。它的响应时间更快，并且宕机的服务器不会去响应，因此客户端不会因为等待回复而被挂住。一个短的 TTL，比如 60 秒，就能帮你做到。</p>
+<p>这种方法需要多台域名服务器。在最简化的场景中，你需要一台主域名服务器和两个子域，每个子域都有它们自己的域名服务器。在子域服务器上配置你的轮询记录，然后在你的主域名服务器上配置委派。</p>
+<p>在主域名服务器上的 BIND 中，你至少需要两个额外的配置，一个区声明以及在区数据文件中的 A/AAAA 记录。主域名服务器中的委派应该像如下的内容：</p><!-- Crayon Syntax Highlighter v2.7.1.1 -->
+
+		<div id=""crayon-5b5579a505390386855625"" class=""crayon-syntax crayon-theme-github crayon-font-monaco crayon-os-pc print-yes notranslate"" data-settings="" minimize scroll-always"" style="" margin-top: 12px; margin-bottom: 12px; font-size: 13px !important; line-height: 15px !important;"">
+		
+			<div class=""crayon-toolbar"" data-settings="" show"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><span class=""crayon-title""></span>
+			<div class=""crayon-tools"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><div class=""crayon-button crayon-nums-button"" title=""切换是否显示行编号""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-plain-button"" title=""纯文本显示代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-wrap-button"" title=""切换自动换行""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-expand-button"" title=""点击展开代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-copy-button"" title=""复制代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-popup-button"" title=""在新窗口中显示代码""><div class=""crayon-button-icon""></div></div></div></div>
+			<div class=""crayon-info"" style=""min-height: 18.2px !important; line-height: 18.2px !important;""></div>
+			<div class=""crayon-plain-wrap""><textarea wrap=""soft"" class=""crayon-plain print-no"" data-settings=""dblclick"" readonly style=""-moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4; font-size: 13px !important; line-height: 15px !important;"">
+ns1.sub.example.com. IN A 172.16.1.20
+ns1.sub.example.com. IN AAAA fd02:faea:f561:8fa0:1::20
+ns2.sub.example.com. IN A 172.16.1.21
+ns2.sub.example.com. IN AAA fd02:faea:f561:8fa0:1::21
+
+sub.example.com. IN NS ns1.sub.example.com.
+sub.example.com. IN NS ns2.sub.example.com.
+</textarea></div>
+			<div class=""crayon-main"" style="""">
+				<table class=""crayon-table"">
+					<tr class=""crayon-row"">
+				<td class=""crayon-nums "" data-settings=""show"">
+					<div class=""crayon-nums-content"" style=""font-size: 13px !important; line-height: 15px !important;""><div class=""crayon-num"" data-line=""crayon-5b5579a505390386855625-1"">1</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a505390386855625-2"">2</div><div class=""crayon-num"" data-line=""crayon-5b5579a505390386855625-3"">3</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a505390386855625-4"">4</div><div class=""crayon-num"" data-line=""crayon-5b5579a505390386855625-5"">5</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a505390386855625-6"">6</div><div class=""crayon-num"" data-line=""crayon-5b5579a505390386855625-7"">7</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a505390386855625-8"">8</div></div>
+				</td>
+						<td class=""crayon-code""><div class=""crayon-pre"" style=""font-size: 13px !important; line-height: 15px !important; -moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4;""><div class=""crayon-line"" id=""crayon-5b5579a505390386855625-1""><span class=""crayon-v"">ns1</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span><span class=""crayon-h""> </span><span class=""crayon-st"">IN</span><span class=""crayon-h""> </span><span class=""crayon-i"">A</span><span class=""crayon-h""> </span><span class=""crayon-cn"">172.16.1.20</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a505390386855625-2""><span class=""crayon-v"">ns1</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span><span class=""crayon-h""> </span><span class=""crayon-st"">IN</span><span class=""crayon-h""> </span><span class=""crayon-e"">AAAA </span><span class=""crayon-v"">fd02</span><span class=""crayon-o"">:</span><span class=""crayon-v"">faea</span><span class=""crayon-o"">:</span><span class=""crayon-v"">f561</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">8fa0</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">1</span><span class=""crayon-o"">::</span><span class=""crayon-cn"">20</span></div><div class=""crayon-line"" id=""crayon-5b5579a505390386855625-3""><span class=""crayon-v"">ns2</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span><span class=""crayon-h""> </span><span class=""crayon-st"">IN</span><span class=""crayon-h""> </span><span class=""crayon-i"">A</span><span class=""crayon-h""> </span><span class=""crayon-cn"">172.16.1.21</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a505390386855625-4""><span class=""crayon-v"">ns2</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span><span class=""crayon-h""> </span><span class=""crayon-st"">IN</span><span class=""crayon-h""> </span><span class=""crayon-e"">AAA </span><span class=""crayon-v"">fd02</span><span class=""crayon-o"">:</span><span class=""crayon-v"">faea</span><span class=""crayon-o"">:</span><span class=""crayon-v"">f561</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">8fa0</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">1</span><span class=""crayon-o"">::</span><span class=""crayon-cn"">21</span></div><div class=""crayon-line"" id=""crayon-5b5579a505390386855625-5""> </div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a505390386855625-6""><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span><span class=""crayon-h""> </span><span class=""crayon-st"">IN</span><span class=""crayon-h""> </span><span class=""crayon-e"">NS </span><span class=""crayon-v"">ns1</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span></div><div class=""crayon-line"" id=""crayon-5b5579a505390386855625-7""><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span><span class=""crayon-h""> </span><span class=""crayon-st"">IN</span><span class=""crayon-h""> </span><span class=""crayon-e"">NS </span><span class=""crayon-v"">ns2</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a505390386855625-8""> </div></div></td>
+					</tr>
+				</table>
+			</div>
+		</div>
+<!-- [Format Time: 0.0023 seconds] -->
+<p>接下来的每台子域服务器上有它们自己的区文件。在这里它的关键点是每个服务器去返回它<strong>自己的</strong> IP 地址。在 <code>named.conf</code> 中的区声明，所有的服务上都是一样的：</p><!-- Crayon Syntax Highlighter v2.7.1.1 -->
+
+		<div id=""crayon-5b5579a505394442230158"" class=""crayon-syntax crayon-theme-github crayon-font-monaco crayon-os-pc print-yes notranslate"" data-settings="" minimize scroll-always"" style="" margin-top: 12px; margin-bottom: 12px; font-size: 13px !important; line-height: 15px !important;"">
+		
+			<div class=""crayon-toolbar"" data-settings="" show"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><span class=""crayon-title""></span>
+			<div class=""crayon-tools"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><div class=""crayon-button crayon-nums-button"" title=""切换是否显示行编号""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-plain-button"" title=""纯文本显示代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-wrap-button"" title=""切换自动换行""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-expand-button"" title=""点击展开代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-copy-button"" title=""复制代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-popup-button"" title=""在新窗口中显示代码""><div class=""crayon-button-icon""></div></div></div></div>
+			<div class=""crayon-info"" style=""min-height: 18.2px !important; line-height: 18.2px !important;""></div>
+			<div class=""crayon-plain-wrap""><textarea wrap=""soft"" class=""crayon-plain print-no"" data-settings=""dblclick"" readonly style=""-moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4; font-size: 13px !important; line-height: 15px !important;"">
+zone ""sub.example.com"" {
+    type master;
+    file ""db.sub.example.com"";
+};
+</textarea></div>
+			<div class=""crayon-main"" style="""">
+				<table class=""crayon-table"">
+					<tr class=""crayon-row"">
+				<td class=""crayon-nums "" data-settings=""show"">
+					<div class=""crayon-nums-content"" style=""font-size: 13px !important; line-height: 15px !important;""><div class=""crayon-num"" data-line=""crayon-5b5579a505394442230158-1"">1</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a505394442230158-2"">2</div><div class=""crayon-num"" data-line=""crayon-5b5579a505394442230158-3"">3</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a505394442230158-4"">4</div><div class=""crayon-num"" data-line=""crayon-5b5579a505394442230158-5"">5</div></div>
+				</td>
+						<td class=""crayon-code""><div class=""crayon-pre"" style=""font-size: 13px !important; line-height: 15px !important; -moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4;""><div class=""crayon-line"" id=""crayon-5b5579a505394442230158-1""><span class=""crayon-i"">zone</span><span class=""crayon-h""> </span><span class=""crayon-s"">""sub.example.com""</span><span class=""crayon-h""> </span><span class=""crayon-sy"">{</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a505394442230158-2""><span class=""crayon-h"">    </span><span class=""crayon-e"">type </span><span class=""crayon-v"">master</span><span class=""crayon-sy"">;</span></div><div class=""crayon-line"" id=""crayon-5b5579a505394442230158-3""><span class=""crayon-h"">    </span><span class=""crayon-i"">file</span><span class=""crayon-h""> </span><span class=""crayon-s"">""db.sub.example.com""</span><span class=""crayon-sy"">;</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a505394442230158-4""><span class=""crayon-sy"">}</span><span class=""crayon-sy"">;</span></div><div class=""crayon-line"" id=""crayon-5b5579a505394442230158-5""> </div></div></td>
+					</tr>
+				</table>
+			</div>
+		</div>
+<!-- [Format Time: 0.0006 seconds] -->
+<p>然后数据文件也是相同的，除了那个 A/AAAA 记录使用的是各个服务器自己的 IP 地址。SOA 记录都指向到主域名服务器：</p><!-- Crayon Syntax Highlighter v2.7.1.1 -->
+
+		<div id=""crayon-5b5579a505397425462502"" class=""crayon-syntax crayon-theme-github crayon-font-monaco crayon-os-pc print-yes notranslate"" data-settings="" minimize scroll-always"" style="" margin-top: 12px; margin-bottom: 12px; font-size: 13px !important; line-height: 15px !important;"">
+		
+			<div class=""crayon-toolbar"" data-settings="" show"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><span class=""crayon-title""></span>
+			<div class=""crayon-tools"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><div class=""crayon-button crayon-nums-button"" title=""切换是否显示行编号""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-plain-button"" title=""纯文本显示代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-wrap-button"" title=""切换自动换行""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-expand-button"" title=""点击展开代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-copy-button"" title=""复制代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-popup-button"" title=""在新窗口中显示代码""><div class=""crayon-button-icon""></div></div></div></div>
+			<div class=""crayon-info"" style=""min-height: 18.2px !important; line-height: 18.2px !important;""></div>
+			<div class=""crayon-plain-wrap""><textarea wrap=""soft"" class=""crayon-plain print-no"" data-settings=""dblclick"" readonly style=""-moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4; font-size: 13px !important; line-height: 15px !important;"">
+; first subdomain name server
+$ORIGIN sub.example.com.
+$TTL 60
+sub.example.com  IN SOA ns1.example.com. admin.example.com. (
+        2018123456      ; serial
+        3H              ; refresh
+        15              ; retry
+        3600000         ; expire
+)
+
+sub.example.com. IN NS ns1.sub.example.com.
+sub.example.com. IN A  172.16.1.20
+ns1.sub.example.com.  IN AAAA  fd02:faea:f561:8fa0:1::20
+; second subdomain name server
+$ORIGIN sub.example.com.
+$TTL 60
+sub.example.com  IN SOA ns1.example.com. admin.example.com. (
+        2018234567      ; serial
+        3H              ; refresh
+        15              ; retry
+        3600000         ; expire
+)
+
+sub.example.com. IN NS ns1.sub.example.com.
+sub.example.com. IN A  172.16.1.21
+ns2.sub.example.com.  IN AAAA  fd02:faea:f561:8fa0:1::21
+</textarea></div>
+			<div class=""crayon-main"" style="""">
+				<table class=""crayon-table"">
+					<tr class=""crayon-row"">
+				<td class=""crayon-nums "" data-settings=""show"">
+					<div class=""crayon-nums-content"" style=""font-size: 13px !important; line-height: 15px !important;""><div class=""crayon-num"" data-line=""crayon-5b5579a505397425462502-1"">1</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a505397425462502-2"">2</div><div class=""crayon-num"" data-line=""crayon-5b5579a505397425462502-3"">3</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a505397425462502-4"">4</div><div class=""crayon-num"" data-line=""crayon-5b5579a505397425462502-5"">5</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a505397425462502-6"">6</div><div class=""crayon-num"" data-line=""crayon-5b5579a505397425462502-7"">7</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a505397425462502-8"">8</div><div class=""crayon-num"" data-line=""crayon-5b5579a505397425462502-9"">9</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a505397425462502-10"">10</div><div class=""crayon-num"" data-line=""crayon-5b5579a505397425462502-11"">11</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a505397425462502-12"">12</div><div class=""crayon-num"" data-line=""crayon-5b5579a505397425462502-13"">13</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a505397425462502-14"">14</div><div class=""crayon-num"" data-line=""crayon-5b5579a505397425462502-15"">15</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a505397425462502-16"">16</div><div class=""crayon-num"" data-line=""crayon-5b5579a505397425462502-17"">17</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a505397425462502-18"">18</div><div class=""crayon-num"" data-line=""crayon-5b5579a505397425462502-19"">19</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a505397425462502-20"">20</div><div class=""crayon-num"" data-line=""crayon-5b5579a505397425462502-21"">21</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a505397425462502-22"">22</div><div class=""crayon-num"" data-line=""crayon-5b5579a505397425462502-23"">23</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a505397425462502-24"">24</div><div class=""crayon-num"" data-line=""crayon-5b5579a505397425462502-25"">25</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a505397425462502-26"">26</div><div class=""crayon-num"" data-line=""crayon-5b5579a505397425462502-27"">27</div></div>
+				</td>
+						<td class=""crayon-code""><div class=""crayon-pre"" style=""font-size: 13px !important; line-height: 15px !important; -moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4;""><div class=""crayon-line"" id=""crayon-5b5579a505397425462502-1""><span class=""crayon-sy"">;</span><span class=""crayon-h""> </span><span class=""crayon-e"">first </span><span class=""crayon-e"">subdomain </span><span class=""crayon-e"">name </span><span class=""crayon-i"">server</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a505397425462502-2""><span class=""crayon-sy"">$</span><span class=""crayon-e"">ORIGIN </span><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span></div><div class=""crayon-line"" id=""crayon-5b5579a505397425462502-3""><span class=""crayon-sy"">$</span><span class=""crayon-i"">TTL</span><span class=""crayon-h""> </span><span class=""crayon-cn"">60</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a505397425462502-4""><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-e"">com  </span><span class=""crayon-st"">IN</span><span class=""crayon-h""> </span><span class=""crayon-e"">SOA </span><span class=""crayon-v"">ns1</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span><span class=""crayon-h""> </span><span class=""crayon-v"">admin</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span><span class=""crayon-h""> </span><span class=""crayon-sy"">(</span></div><div class=""crayon-line"" id=""crayon-5b5579a505397425462502-5""><span class=""crayon-h"">        </span><span class=""crayon-cn"">2018123456</span><span class=""crayon-h"">      </span><span class=""crayon-sy"">;</span><span class=""crayon-h""> </span><span class=""crayon-i"">serial</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a505397425462502-6""><span class=""crayon-h"">        </span><span class=""crayon-cn"">3H</span><span class=""crayon-h"">              </span><span class=""crayon-sy"">;</span><span class=""crayon-h""> </span><span class=""crayon-i"">refresh</span></div><div class=""crayon-line"" id=""crayon-5b5579a505397425462502-7""><span class=""crayon-h"">        </span><span class=""crayon-cn"">15</span><span class=""crayon-h"">              </span><span class=""crayon-sy"">;</span><span class=""crayon-h""> </span><span class=""crayon-i"">retry</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a505397425462502-8""><span class=""crayon-h"">        </span><span class=""crayon-cn"">3600000</span><span class=""crayon-h"">         </span><span class=""crayon-sy"">;</span><span class=""crayon-h""> </span><span class=""crayon-i"">expire</span></div><div class=""crayon-line"" id=""crayon-5b5579a505397425462502-9""><span class=""crayon-sy"">)</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a505397425462502-10""> </div><div class=""crayon-line"" id=""crayon-5b5579a505397425462502-11""><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span><span class=""crayon-h""> </span><span class=""crayon-st"">IN</span><span class=""crayon-h""> </span><span class=""crayon-e"">NS </span><span class=""crayon-v"">ns1</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a505397425462502-12""><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span><span class=""crayon-h""> </span><span class=""crayon-st"">IN</span><span class=""crayon-h""> </span><span class=""crayon-i"">A</span><span class=""crayon-h"">  </span><span class=""crayon-cn"">172.16.1.20</span></div><div class=""crayon-line"" id=""crayon-5b5579a505397425462502-13""><span class=""crayon-v"">ns1</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span><span class=""crayon-h"">  </span><span class=""crayon-st"">IN</span><span class=""crayon-h""> </span><span class=""crayon-e"">AAAA  </span><span class=""crayon-v"">fd02</span><span class=""crayon-o"">:</span><span class=""crayon-v"">faea</span><span class=""crayon-o"">:</span><span class=""crayon-v"">f561</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">8fa0</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">1</span><span class=""crayon-o"">::</span><span class=""crayon-cn"">20</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a505397425462502-14""><span class=""crayon-sy"">;</span><span class=""crayon-h""> </span><span class=""crayon-e"">second </span><span class=""crayon-e"">subdomain </span><span class=""crayon-e"">name </span><span class=""crayon-i"">server</span></div><div class=""crayon-line"" id=""crayon-5b5579a505397425462502-15""><span class=""crayon-sy"">$</span><span class=""crayon-e"">ORIGIN </span><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a505397425462502-16""><span class=""crayon-sy"">$</span><span class=""crayon-i"">TTL</span><span class=""crayon-h""> </span><span class=""crayon-cn"">60</span></div><div class=""crayon-line"" id=""crayon-5b5579a505397425462502-17""><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-e"">com  </span><span class=""crayon-st"">IN</span><span class=""crayon-h""> </span><span class=""crayon-e"">SOA </span><span class=""crayon-v"">ns1</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span><span class=""crayon-h""> </span><span class=""crayon-v"">admin</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span><span class=""crayon-h""> </span><span class=""crayon-sy"">(</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a505397425462502-18""><span class=""crayon-h"">        </span><span class=""crayon-cn"">2018234567</span><span class=""crayon-h"">      </span><span class=""crayon-sy"">;</span><span class=""crayon-h""> </span><span class=""crayon-i"">serial</span></div><div class=""crayon-line"" id=""crayon-5b5579a505397425462502-19""><span class=""crayon-h"">        </span><span class=""crayon-cn"">3H</span><span class=""crayon-h"">              </span><span class=""crayon-sy"">;</span><span class=""crayon-h""> </span><span class=""crayon-i"">refresh</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a505397425462502-20""><span class=""crayon-h"">        </span><span class=""crayon-cn"">15</span><span class=""crayon-h"">              </span><span class=""crayon-sy"">;</span><span class=""crayon-h""> </span><span class=""crayon-i"">retry</span></div><div class=""crayon-line"" id=""crayon-5b5579a505397425462502-21""><span class=""crayon-h"">        </span><span class=""crayon-cn"">3600000</span><span class=""crayon-h"">         </span><span class=""crayon-sy"">;</span><span class=""crayon-h""> </span><span class=""crayon-i"">expire</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a505397425462502-22""><span class=""crayon-sy"">)</span></div><div class=""crayon-line"" id=""crayon-5b5579a505397425462502-23""> </div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a505397425462502-24""><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span><span class=""crayon-h""> </span><span class=""crayon-st"">IN</span><span class=""crayon-h""> </span><span class=""crayon-e"">NS </span><span class=""crayon-v"">ns1</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span></div><div class=""crayon-line"" id=""crayon-5b5579a505397425462502-25""><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span><span class=""crayon-h""> </span><span class=""crayon-st"">IN</span><span class=""crayon-h""> </span><span class=""crayon-i"">A</span><span class=""crayon-h"">  </span><span class=""crayon-cn"">172.16.1.21</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a505397425462502-26""><span class=""crayon-v"">ns2</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-sy"">.</span><span class=""crayon-h"">  </span><span class=""crayon-st"">IN</span><span class=""crayon-h""> </span><span class=""crayon-e"">AAAA  </span><span class=""crayon-v"">fd02</span><span class=""crayon-o"">:</span><span class=""crayon-v"">faea</span><span class=""crayon-o"">:</span><span class=""crayon-v"">f561</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">8fa0</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">1</span><span class=""crayon-o"">::</span><span class=""crayon-cn"">21</span></div><div class=""crayon-line"" id=""crayon-5b5579a505397425462502-27""> </div></div></td>
+					</tr>
+				</table>
+			</div>
+		</div>
+<!-- [Format Time: 0.0048 seconds] -->
+<p>接下来生成子域服务器上的轮询记录，方法和前面一样。现在你已经有了多个域名服务器来处理到你的子域的请求。再说一次，BIND 是很复杂的，做同一件事情它有多种方法，因此，给你留的家庭作业是找出适合你使用的最佳配置方法。</p>
+<p>在 Dnsmasq 中做子域委派很容易。在你的主域名服务器上的 <code>dnsmasq.conf</code> 文件中添加如下的行，去指向到子域的域名服务器：</p><!-- Crayon Syntax Highlighter v2.7.1.1 -->
+
+		<div id=""crayon-5b5579a50539b352886636"" class=""crayon-syntax crayon-theme-github crayon-font-monaco crayon-os-pc print-yes notranslate"" data-settings="" minimize scroll-always"" style="" margin-top: 12px; margin-bottom: 12px; font-size: 13px !important; line-height: 15px !important;"">
+		
+			<div class=""crayon-toolbar"" data-settings="" show"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><span class=""crayon-title""></span>
+			<div class=""crayon-tools"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><div class=""crayon-button crayon-nums-button"" title=""切换是否显示行编号""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-plain-button"" title=""纯文本显示代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-wrap-button"" title=""切换自动换行""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-expand-button"" title=""点击展开代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-copy-button"" title=""复制代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-popup-button"" title=""在新窗口中显示代码""><div class=""crayon-button-icon""></div></div></div></div>
+			<div class=""crayon-info"" style=""min-height: 18.2px !important; line-height: 18.2px !important;""></div>
+			<div class=""crayon-plain-wrap""><textarea wrap=""soft"" class=""crayon-plain print-no"" data-settings=""dblclick"" readonly style=""-moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4; font-size: 13px !important; line-height: 15px !important;"">
+server=/sub.example.com/172.16.1.20
+server=/sub.example.com/172.16.1.21
+server=/sub.example.com/fd02:faea:f561:8fa0:1::20
+server=/sub.example.com/fd02:faea:f561:8fa0:1::21
+</textarea></div>
+			<div class=""crayon-main"" style="""">
+				<table class=""crayon-table"">
+					<tr class=""crayon-row"">
+				<td class=""crayon-nums "" data-settings=""show"">
+					<div class=""crayon-nums-content"" style=""font-size: 13px !important; line-height: 15px !important;""><div class=""crayon-num"" data-line=""crayon-5b5579a50539b352886636-1"">1</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a50539b352886636-2"">2</div><div class=""crayon-num"" data-line=""crayon-5b5579a50539b352886636-3"">3</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b5579a50539b352886636-4"">4</div><div class=""crayon-num"" data-line=""crayon-5b5579a50539b352886636-5"">5</div></div>
+				</td>
+						<td class=""crayon-code""><div class=""crayon-pre"" style=""font-size: 13px !important; line-height: 15px !important; -moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4;""><div class=""crayon-line"" id=""crayon-5b5579a50539b352886636-1""><span class=""crayon-v"">server</span><span class=""crayon-o"">=</span><span class=""crayon-o"">/</span><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-o"">/</span><span class=""crayon-cn"">172.16.1.20</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a50539b352886636-2""><span class=""crayon-v"">server</span><span class=""crayon-o"">=</span><span class=""crayon-o"">/</span><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-o"">/</span><span class=""crayon-cn"">172.16.1.21</span></div><div class=""crayon-line"" id=""crayon-5b5579a50539b352886636-3""><span class=""crayon-v"">server</span><span class=""crayon-o"">=</span><span class=""crayon-o"">/</span><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-o"">/</span><span class=""crayon-v"">fd02</span><span class=""crayon-o"">:</span><span class=""crayon-v"">faea</span><span class=""crayon-o"">:</span><span class=""crayon-v"">f561</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">8fa0</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">1</span><span class=""crayon-o"">::</span><span class=""crayon-cn"">20</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b5579a50539b352886636-4""><span class=""crayon-v"">server</span><span class=""crayon-o"">=</span><span class=""crayon-o"">/</span><span class=""crayon-v"">sub</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">example</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">com</span><span class=""crayon-o"">/</span><span class=""crayon-v"">fd02</span><span class=""crayon-o"">:</span><span class=""crayon-v"">faea</span><span class=""crayon-o"">:</span><span class=""crayon-v"">f561</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">8fa0</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">1</span><span class=""crayon-o"">::</span><span class=""crayon-cn"">21</span></div><div class=""crayon-line"" id=""crayon-5b5579a50539b352886636-5""> </div></div></td>
+					</tr>
+				</table>
+			</div>
+		</div>
+<!-- [Format Time: 0.0014 seconds] -->
+<p>然后在子域的域名服务器上的 <code>/etc/hosts</code> 中配置轮询。</p>
+<p>获取配置方法的详细内容和帮助，请参考这些资源：</p>
+<ul>
+<li><a href=""http://www.thekelleys.org.uk/dnsmasq/doc.html"">Dnsmasq</a></li>
+<li><a href=""http://shop.oreilly.com/product/9780596100575.do"">DNS and BIND, 5th Edition</a></li>
+</ul>
+<p>通过来自 Linux 基金会和 edX 的免费课程 <a href=""https://training.linuxfoundation.org/linux-courses/system-administration-training/introduction-to-linux"">“Linux 入门” </a> 学习更多 Linux 的知识。</p>
+
+        
+        
+        
+    <div class=""post-adds"">
+        <span data-post-id=""114157"" class="" btn-bluet-bigger href-style vote-post-up   register-user-only ""><i class=""fa  fa-thumbs-o-up""></i> <h10 id=""114157votetotal"">1</h10> 赞</span>
+        <span data-book-type=""1"" data-site-id=""2"" data-item-id=""114157"" data-item-type=""1"" class="" btn-bluet-bigger href-style bookmark-btn  register-user-only ""><i class=""fa fa-bookmark-o  ""></i>  收藏</span>
+
+                    <a href=""#article-comment""><span class=""btn-bluet-bigger href-style hide-on-480""><i class=""fa fa-comments-o""></i>  评论</span></a>
+        
+        
+        
+        <!-- JiaThis Button BEGIN -->
+        <div class=""jiathis_style_24x24"" style=""display: inline-flex; position: relative; margin: 0; clear: both;float: right;"">
+            <a class=""jiathis_button_tsina""></a>
+            <a class=""jiathis_button_weixin""></a>
+            <a class=""jiathis_button_qzone""></a>
+            <a class=""jiathis_button_fb hide-on-480""></a>
+            <a href=""http://www.jiathis.com/share?uid=1745061"" class=""jiathis jiathis_txt jiathis_separator jtico jtico_jiathis"" target=""_blank""></a>
+        </div>
+
+    </div>
+
+
+
+
+        <!-- BEGIN #author-bio -->
+
+
+<!-- END #author-bio -->
+	</div>",2018/06/25,,http://jbcdn2.b0.upaiyun.com/2018/01/1b8322e1daff605d71fc81e724421f17.jpg,1,"IT技术,Linux",在 Linux 上用 DNS 实现简单的负载均衡,http://blog.jobbole.com/114157/,114157
+0,0,"<div class=""entry"">
+
+        			<div class=""textwidget""></div>
+		
+		<div class=""copyright-area"">原文出处： <a target=""_blank"" href=""http://www.cnblogs.com/kismetv/p/9236731.html"">编程迷思</a>   </div><h2>前言</h2>
+<p>在前面的两篇文章中，分别介绍了<a href=""http://blog.jobbole.com/113789/"" target=""_blank"">Redis的内存模型</a>和<a href=""http://blog.jobbole.com/114093/"" target=""_blank"">Redis的持久化</a>。</p>
+<p>在Redis的持久化中曾提到，Redis高可用的方案包括持久化、主从复制（及读写分离）、哨兵和集群。其中持久化侧重解决的是Redis数据的单机备份问题（从内存到硬盘的备份）；而主从复制则侧重解决数据的多机热备。此外，主从复制还可以实现负载均衡和故障恢复。</p>
+<p>这篇文章中，将详细介绍Redis主从复制的方方面面，包括：如何使用主从复制、主从复制的原理（重点是全量复制和部分复制、以及心跳机制）、实际应用中需要注意的问题（如数据不一致问题、复制超时问题、复制缓冲区溢出问题）、主从复制相关的配置（重点是repl-timeout、client-output-buffer-limit slave）等。</p>
+<h1>一、主从复制概述</h1>
+<p>主从复制，是指将一台Redis服务器的数据，复制到其他的Redis服务器。前者称为主节点(master)，后者称为从节点(slave)；数据的复制是单向的，只能由主节点到从节点。</p>
+<p>默认情况下，每台Redis服务器都是主节点；且一个主节点可以有多个从节点(或没有从节点)，但一个从节点只能有一个主节点。</p>
+<p><strong>主从复制的作用</strong></p>
+<p>主从复制的作用主要包括：</p>
+<ol>
+<li>数据冗余：主从复制实现了数据的热备份，是持久化之外的一种数据冗余方式。</li>
+<li>故障恢复：当主节点出现问题时，可以由从节点提供服务，实现快速的故障恢复；实际上是一种服务的冗余。</li>
+<li>负载均衡：在主从复制的基础上，配合读写分离，可以由主节点提供写服务，由从节点提供读服务（即写Redis数据时应用连接主节点，读Redis数据时应用连接从节点），分担服务器负载；尤其是在写少读多的场景下，通过多个从节点分担读负载，可以大大提高Redis服务器的并发量。</li>
+<li>高可用基石：除了上述作用以外，主从复制还是哨兵和集群能够实施的基础，因此说主从复制是Redis高可用的基础。</li>
+</ol>
+<h1>二、如何使用主从复制</h1>
+<p>为了更直观的理解主从复制，在介绍其内部原理之前，先说明我们需要如何操作才能开启主从复制。</p>
+<h2>1. 建立复制</h2>
+<p>需要注意，<strong>主从复制的开启，完全是在从节点发起的；不需要我们在主节点做任何事情。</strong></p>
+<p>从节点开启主从复制，有3种方式：</p>
+<p>（1）配置文件</p>
+<p>在从服务器的配置文件中加入：slaveof &lt;masterip&gt; &lt;masterport&gt;</p>
+<p>（2）启动命令</p>
+<p>redis-server启动命令后加入 –slaveof &lt;masterip&gt; &lt;masterport&gt;</p>
+<p>（3）客户端命令</p>
+<p>Redis服务器启动后，直接通过客户端执行命令：slaveof &lt;masterip&gt; &lt;masterport&gt;，则该Redis实例成为从节点。</p>
+<p>上述3种方式是等效的，下面以客户端命令的方式为例，看一下当执行了slaveof后，Redis主节点和从节点的变化。</p>
+<h2>2. 实例</h2>
+<h3>准备工作：启动两个节点</h3>
+<p>方便起见，实验所使用的主从节点是在一台机器上的不同Redis实例，其中主节点监听6379端口，从节点监听6380端口；从节点监听的端口号可以在配置文件中修改：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/f8bd402c8f2c061e530425c73a3ca8a3.png"" alt=""""></p>
+<p>启动后可以看到：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/6086f737e5512ad04968c73ccfd825eb.png"" alt=""""></p>
+<p>两个Redis节点启动后（分别称为6379节点和6380节点），默认都是主节点。</p>
+<h3>建立复制</h3>
+<p>此时在6380节点执行slaveof命令，使之变为从节点：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/52a970ef1267bd05592c3eaf1f6adbb5.png"" alt=""""></p>
+<h3>观察效果</h3>
+<p>下面验证一下，在主从复制建立后，主节点的数据会复制到从节点中。</p>
+<p>（1）首先在从节点查询一个不存在的key：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/1b0f72f0a25b24ae841a94ebcab8aff3.png"" alt=""""></p>
+<p>（2）然后在主节点中增加这个key：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/6ea8e7f7f1e7e7366f01ae2826a156cb.png"" alt=""""></p>
+<p>（3）此时在从节点中再次查询这个key，会发现主节点的操作已经同步至从节点：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/568a21042ea667791b9ded398157ea9e.png"" alt=""""></p>
+<p>（4）然后在主节点删除这个key：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/a5374ed7f3c9561b164960079fb1a4a2.png"" alt=""""></p>
+<p>（5）此时在从节点中再次查询这个key，会发现主节点的操作已经同步至从节点：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/69f2bbaf2104ed754714c1b9c7c130a2.png"" alt=""""></p>
+<h2>3. 断开复制</h2>
+<p>通过slaveof &lt;masterip&gt; &lt;masterport&gt;命令建立主从复制关系以后，可以通过slaveof no one断开。需要注意的是，从节点断开复制后，不会删除已有的数据，只是不再接受主节点新的数据变化。</p>
+<p>从节点执行slaveof no one后，打印日志如下所示；可以看出断开复制后，从节点又变回为主节点。</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/26021476cbfc7cc0057ec1705832bbb5.png"" alt=""""></p>
+<p>主节点打印日志如下：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/068ea8d21fff8628cb3a083e021cf01e.png"" alt=""""></p>
+<h1>三、主从复制的实现原理</h1>
+<p>上面一节中，介绍了如何操作可以建立主从关系；本小节将介绍主从复制的实现原理。</p>
+<p>主从复制过程大体可以分为3个阶段：连接建立阶段（即准备阶段）、数据同步阶段、命令传播阶段；下面分别进行介绍。</p>
+<h2>1. 连接建立阶段</h2>
+<p>该阶段的主要作用是在主从节点之间建立连接，为数据同步做好准备。</p>
+<h3>步骤1：保存主节点信息</h3>
+<p>从节点服务器内部维护了两个字段，即masterhost和masterport字段，用于存储主节点的ip和port信息。</p>
+<p>需要注意的是，<strong>slaveof</strong><strong>是异步命令，从节点完成主节点ip</strong><strong>和port</strong><strong>的保存后，向发送slaveof</strong><strong>命令的客户端直接返回OK</strong><strong>，实际的复制操作在这之后才开始进行。</strong></p>
+<p>这个过程中，可以看到从节点打印日志如下：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/91ae1117c30e1084ea85c3a44be915ab.png"" alt=""""></p>
+<h3>步骤2：建立socket连接</h3>
+<p>从节点每秒1次调用复制定时函数replicationCron()，如果发现了有主节点可以连接，便会根据主节点的ip和port，创建socket连接。如果连接成功，则：</p>
+<p>从节点：为该socket建立一个专门处理复制工作的文件事件处理器，负责后续的复制工作，如接收RDB文件、接收命令传播等。</p>
+<p>主节点：接收到从节点的socket连接后（即accept之后），为该socket创建相应的客户端状态，<strong>并将从节点看做是连接到主节点的一个客户端，后面的步骤会以从节点向主节点发送命令请求的形式来进行。</strong></p>
+<p>这个过程中，从节点打印日志如下：</p>
+<p><img src=""http://jbcdn2.b0.upaiyun.com/2018/07/161e84d3812ffe96a64c49b818e16d9b.png"" alt=""""></p>
+<h3>步骤3：发送ping命令</h3>
+<p>从节点成为主节点的客户端之后，发送ping命令进行首次请求，目的是：检查socket连接是否可用，以及主节点当前是否能够处理请求。</p>
+<p>从节点发送ping命令后，可能出现3种情况：</p>
+<p>（1）返回pong：说明socket连接正常，且主节点当前可以处理请求，复制过程继续。</p>
+<p>（2）超时：一定时间后从节点仍未收到主节点的回复，说明socket连接不可用，则从节点断开socket连接，并重连。</p>
+<p>（3）返回pong以外的结果：如果主节点返回其他结果，如正在处理超时运行的脚本，说明主节点当前无法处理命令，则从节点断开socket连接，并重连。</p>
+<p>在主节点返回pong情况下，从节点打印日志如下：</p>
+<p><img src=""http://jbcdn2.b0.upaiyun.com/2018/07/9f778e5fa051775c362d32c8b6ca745e.png"" alt=""""></p>
+<h3>步骤4：身份验证</h3>
+<p>如果从节点中设置了masterauth选项，则从节点需要向主节点进行身份验证；没有设置该选项，则不需要验证。从节点进行身份验证是通过向主节点发送auth命令进行的，auth命令的参数即为配置文件中的masterauth的值。</p>
+<p>如果主节点设置密码的状态，与从节点masterauth的状态一致（一致是指都存在，且密码相同，或者都不存在），则身份验证通过，复制过程继续；如果不一致，则从节点断开socket连接，并重连。</p>
+<h3>步骤5：发送从节点端口信息</h3>
+<p>身份验证之后，从节点会向主节点发送其监听的端口号（前述例子中为6380），主节点将该信息保存到该从节点对应的客户端的slave_listening_port字段中；该端口信息除了在主节点中执行info Replication时显示以外，没有其他作用。</p>
+<h2>2. 数据同步阶段</h2>
+<p>主从节点之间的连接建立以后，便可以开始进行数据同步，该阶段可以理解为从节点数据的初始化。具体执行的方式是：从节点向主节点发送psync命令（Redis2.8以前是sync命令），开始同步。</p>
+<p>数据同步阶段是主从复制最核心的阶段，根据主从节点当前状态的不同，可以分为全量复制和部分复制，下面会有一章专门讲解这两种复制方式以及psync命令的执行过程，这里不再详述。</p>
+<p>需要注意的是，在数据同步阶段之前，从节点是主节点的客户端，主节点不是从节点的客户端；而到了这一阶段及以后，主从节点互为客户端。原因在于：在此之前，主节点只需要响应从节点的请求即可，不需要主动发请求，而在数据同步阶段和后面的命令传播阶段，主节点需要主动向从节点发送请求（如推送缓冲区中的写命令），才能完成复制。</p>
+<h2>3. 命令传播阶段</h2>
+<p>数据同步阶段完成后，主从节点进入命令传播阶段；在这个阶段主节点将自己执行的写命令发送给从节点，从节点接收命令并执行，从而保证主从节点数据的一致性。</p>
+<p>在命令传播阶段，除了发送写命令，主从节点还维持着心跳机制：PING和REPLCONF ACK。由于心跳机制的原理涉及部分复制，因此将在介绍了部分复制的相关内容后单独介绍该心跳机制。</p>
+<p><strong>延迟与不一致</strong></p>
+<p>需要注意的是，命令传播是异步的过程，即主节点发送写命令后并不会等待从节点的回复；因此实际上主从节点之间很难保持实时的一致性，延迟在所难免。数据不一致的程度，与主从节点之间的网络状况、主节点写命令的执行频率、以及主节点中的repl-disable-tcp-nodelay配置等有关。</p>
+<p>repl-disable-tcp-nodelay no：该配置作用于命令传播阶段，控制主节点是否禁止与从节点的TCP_NODELAY；默认no，即不禁止TCP_NODELAY。当设置为yes时，TCP会对包进行合并从而减少带宽，但是发送的频率会降低，从节点数据延迟增加，一致性变差；具体发送频率与Linux内核的配置有关，默认配置为40ms。当设置为no时，TCP会立马将主节点的数据发送给从节点，带宽增加但延迟变小。</p>
+<p>一般来说，只有当应用对Redis数据不一致的容忍度较高，且主从节点之间网络状况不好时，才会设置为yes；多数情况使用默认值no。</p>
+<h1>四、【数据同步阶段】全量复制和部分复制</h1>
+<p>在Redis2.8以前，从节点向主节点发送sync命令请求同步数据，此时的同步方式是全量复制；在Redis2.8及以后，从节点可以发送psync命令请求同步数据，此时根据主从节点当前状态的不同，同步方式可能是全量复制或部分复制。后文介绍以Redis2.8及以后版本为例。</p>
+<ol>
+<li>全量复制：用于初次复制或其他无法进行部分复制的情况，将主节点中的所有数据都发送给从节点，是一个非常重型的操作。</li>
+<li>部分复制：用于网络中断等情况后的复制，只将中断期间主节点执行的写命令发送给从节点，与全量复制相比更加高效。需要注意的是，如果网络中断时间过长，导致主节点没有能够完整地保存中断期间执行的写命令，则无法进行部分复制，仍使用全量复制。</li>
+</ol>
+<h2>1. 全量复制</h2>
+<p>Redis通过psync命令进行全量复制的过程如下：</p>
+<p>（1）从节点判断无法进行部分复制，向主节点发送全量复制的请求；或从节点发送部分复制的请求，但主节点判断无法进行全量复制；具体判断过程需要在讲述了部分复制原理后再介绍。</p>
+<p>（2）主节点收到全量复制的命令后，执行bgsave，在后台生成RDB文件，并使用一个缓冲区（称为复制缓冲区）记录从现在开始执行的所有写命令</p>
+<p>（3）主节点的bgsave执行完成后，将RDB文件发送给从节点；<strong>从节点首先清除自己的旧数据，然后载入接收的</strong><strong>RDB</strong><strong>文件</strong>，将数据库状态更新至主节点执行bgsave时的数据库状态</p>
+<p>（4）主节点将前述复制缓冲区中的所有写命令发送给从节点，从节点执行这些写命令，将数据库状态更新至主节点的最新状态</p>
+<p>（5）如果从节点开启了AOF，则会触发bgrewriteaof的执行，从而保证AOF文件更新至主节点的最新状态</p>
+<p>下面是执行全量复制时，主从节点打印的日志；可以看出日志内容与上述步骤是完全对应的。</p>
+<p>主节点的打印日志如下：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/53f6cbf8a51c88138c65167cf4fe7e0c.png"" alt=""""></p>
+<p>从节点打印日志如下图所示：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/ed55e49faf7e91f04d1a4f4c4b00e11b.png"" alt=""""></p>
+<p>其中，有几点需要注意：从节点接收了来自主节点的89260个字节的数据；从节点在载入主节点的数据之前要先将老数据清除；从节点在同步完数据后，调用了bgrewriteaof。</p>
+<p>通过全量复制的过程可以看出，全量复制是非常重型的操作：</p>
+<p>（1）主节点通过bgsave命令fork子进程进行RDB持久化，该过程是非常消耗CPU、内存(页表复制)、硬盘IO的；关于bgsave的性能问题，可以参考 <a href=""http://blog.jobbole.com/114093/"" target=""_blank"">深入学习Redis（2）：持久化</a></p>
+<p>（2）主节点通过网络将RDB文件发送给从节点，对主从节点的带宽都会带来很大的消耗</p>
+<p>（3）从节点清空老数据、载入新RDB文件的过程是阻塞的，无法响应客户端的命令；如果从节点执行bgrewriteaof，也会带来额外的消耗</p>
+<h2>2. 部分复制</h2>
+<p>由于全量复制在主节点数据量较大时效率太低，因此Redis2.8开始提供部分复制，用于处理网络中断时的数据同步。</p>
+<p>部分复制的实现，依赖于三个重要的概念：</p>
+<h3>（1）复制偏移量</h3>
+<p>主节点和从节点分别维护一个复制偏移量（offset），代表的是<strong>主节点向从节点传递的字节数</strong>；主节点每次向从节点传播N个字节数据时，主节点的offset增加N；从节点每次收到主节点传来的N个字节数据时，从节点的offset增加N。</p>
+<p>offset用于判断主从节点的数据库状态是否一致：如果二者offset相同，则一致；如果offset不同，则不一致，此时可以根据两个offset找出从节点缺少的那部分数据。例如，如果主节点的offset是1000，而从节点的offset是500，那么部分复制就需要将offset为501-1000的数据传递给从节点。而offset为501-1000的数据存储的位置，就是下面要介绍的复制积压缓冲区。</p>
+<h3>（2）复制积压缓冲区</h3>
+<p>复制积压缓冲区是由主节点维护的、固定长度的、先进先出(FIFO)队列，默认大小1MB；当主节点开始有从节点时创建，其作用是备份主节点最近发送给从节点的数据。注意，无论主节点有一个还是多个从节点，都只需要一个复制积压缓冲区。</p>
+<p>在命令传播阶段，主节点除了将写命令发送给从节点，还会发送一份给复制积压缓冲区，作为写命令的备份；除了存储写命令，复制积压缓冲区中还存储了其中的每个字节对应的复制偏移量（offset）。由于复制积压缓冲区定长且是先进先出，所以它保存的是主节点最近执行的写命令；时间较早的写命令会被挤出缓冲区。</p>
+<p>由于该缓冲区长度固定且有限，因此可以备份的写命令也有限，当主从节点offset的差距过大超过缓冲区长度时，将无法执行部分复制，只能执行全量复制。反过来说，为了提高网络中断时部分复制执行的概率，可以根据需要增大复制积压缓冲区的大小(通过配置repl-backlog-size)；例如如果网络中断的平均时间是60s，而主节点平均每秒产生的写命令(特定协议格式)所占的字节数为100KB，则复制积压缓冲区的平均需求为6MB，保险起见，可以设置为12MB，来保证绝大多数断线情况都可以使用部分复制。</p>
+<p>从节点将offset发送给主节点后，主节点根据offset和缓冲区大小决定能否执行部分复制：</p>
+<ul>
+<li>如果offset偏移量之后的数据，仍然都在复制积压缓冲区里，则执行部分复制；</li>
+<li>如果offset偏移量之后的数据已不在复制积压缓冲区中（数据已被挤出），则执行全量复制。</li>
+</ul>
+<h3>（3）服务器运行ID(runid)</h3>
+<p>每个Redis节点(无论主从)，在启动时都会自动生成一个随机ID(每次启动都不一样)，由40个随机的十六进制字符组成；runid用来唯一识别一个Redis节点。通过info Server命令，可以查看节点的runid：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/9d9f5a1f900cc62a58b99c84afceb108.png"" alt=""""></p>
+<p>主从节点初次复制时，主节点将自己的runid发送给从节点，从节点将这个runid保存起来；当断线重连时，从节点会将这个runid发送给主节点；主节点根据runid判断能否进行部分复制：</p>
+<ul>
+<li>如果从节点保存的runid与主节点现在的runid相同，说明主从节点之前同步过，主节点会继续尝试使用部分复制(到底能不能部分复制还要看offset和复制积压缓冲区的情况)；</li>
+<li>如果从节点保存的runid与主节点现在的runid不同，说明从节点在断线前同步的Redis节点并不是当前的主节点，只能进行全量复制。</li>
+</ul>
+<h2>3. psync命令的执行</h2>
+<p>在了解了复制偏移量、复制积压缓冲区、节点运行id之后，本节将介绍psync命令的参数和返回值，从而说明psync命令执行过程中，主从节点是如何确定使用全量复制还是部分复制的。</p>
+<p>psync命令的执行过程可以参见下图（图片来源：《Redis设计与实现》）：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/539735ab6935ec04a11e4eae532473b4.png"" alt=""""></p>
+<p>（1）首先，从节点根据当前状态，决定如何调用psync命令：</p>
+<ul>
+<li>如果从节点之前未执行过slaveof或最近执行了slaveof no one，则从节点发送命令为psync ? -1，向主节点请求全量复制；</li>
+<li>如果从节点之前执行了slaveof，则发送命令为psync &lt;runid&gt; &lt;offset&gt;，其中runid为上次复制的主节点的runid，offset为上次复制截止时从节点保存的复制偏移量。</li>
+</ul>
+<p>（2）主节点根据收到的psync命令，及当前服务器状态，决定执行全量复制还是部分复制：</p>
+<ul>
+<li>如果主节点版本低于Redis2.8，则返回-ERR回复，此时从节点重新发送sync命令执行全量复制；</li>
+<li>如果主节点版本够新，且runid与从节点发送的runid相同，且从节点发送的offset之后的数据在复制积压缓冲区中都存在，则回复+CONTINUE，表示将进行部分复制，从节点等待主节点发送其缺少的数据即可；</li>
+<li>如果主节点版本够新，但是runid与从节点发送的runid不同，或从节点发送的offset之后的数据已不在复制积压缓冲区中(在队列中被挤出了)，则回复+FULLRESYNC &lt;runid&gt; &lt;offset&gt;，表示要进行全量复制，其中runid表示主节点当前的runid，offset表示主节点当前的offset，从节点保存这两个值，以备使用。</li>
+</ul>
+<h2>4. 部分复制演示</h2>
+<p>在下面的演示中，网络中断几分钟后恢复，断开连接的主从节点进行了部分复制；为了便于模拟网络中断，本例中的主从节点在局域网中的两台机器上。</p>
+<p><strong>网络中断</strong></p>
+<p>网络中断一段时间后，主节点和从节点都会发现失去了与对方的连接（关于主从节点对超时的判断机制，后面会有说明）；此后，从节点便开始执行对主节点的重连，由于此时网络还没有恢复，重连失败，从节点会一直尝试重连。</p>
+<p>主节点日志如下：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/02bba87c0eb1a8af6f181ae3c99e1ab2.png"" alt=""""></p>
+<p>从节点日志如下：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/417f7451c637e34e8ea8727df6140920.png"" alt=""""></p>
+<p><strong>网络恢复</strong></p>
+<p>网络恢复后，从节点连接主节点成功，并请求进行部分复制，主节点接收请求后，二者进行部分复制以同步数据。</p>
+<p>主节点日志如下：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/1600a7bbcdfc26e6bb286885f84f3353.png"" alt=""""></p>
+<p>从节点日志如下：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/ad33fbcc87156992bb9ffc7a45c18032.png"" alt=""""></p>
+<h1>五、【命令传播阶段】心跳机制</h1>
+<p>在命令传播阶段，除了发送写命令，主从节点还维持着心跳机制：PING和REPLCONF ACK。心跳机制对于主从复制的超时判断、数据安全等有作用。</p>
+<h2>1.主-&gt;从：PING</h2>
+<p>每隔指定的时间，<strong>主节点会向从节点发送</strong><strong>PING</strong><strong>命令</strong>，这个PING命令的作用，主要是为了让从节点进行超时判断。</p>
+<p>PING发送的频率由repl-ping-slave-period参数控制，单位是秒，默认值是10s。</p>
+<p>关于该PING命令究竟是由主节点发给从节点，还是相反，有一些争议；因为在Redis的官方文档中，对该参数的注释中说明是从节点向主节点发送PING命令，如下图所示：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/15bc8cfb447fd80e86a47ba186441f6d.png"" alt=""""></p>
+<p>但是根据该参数的名称(含有ping-slave)，以及代码实现，我认为该PING命令是主节点发给从节点的。相关代码如下：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/6aecaca87b37a8733c5dad783a80c2b0.png"" alt=""""></p>
+<h2>2. 从-&gt;主：REPLCONF ACK</h2>
+<p>在命令传播阶段，<strong>从节点会向主节点发送</strong><strong>REPLCONF ACK</strong><strong>命令，</strong>频率是每秒1次；命令格式为：REPLCONF ACK {offset}，其中offset指从节点保存的复制偏移量。REPLCONF ACK命令的作用包括：</p>
+<p>（1）实时监测主从节点网络状态：该命令会被主节点用于复制超时的判断。此外，在主节点中使用info Replication，可以看到其从节点的状态中的lag值，代表的是主节点上次收到该REPLCONF ACK命令的时间间隔，在正常情况下，该值应该是0或1，如下图所示：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/ad2eb70149ddbd2771b606ea69192084.png"" alt=""""></p>
+<p>（2）检测命令丢失：从节点发送了自身的offset，主节点会与自己的offset对比，如果从节点数据缺失（如网络丢包），主节点会推送缺失的数据（这里也会利用复制积压缓冲区）。<strong>注意，</strong><strong>offset</strong><strong>和复制积压缓冲区，不仅可以用于部分复制，也可以用于处理命令丢失等情形；区别在于前者是在断线重连后进行的，而后者是在主从节点没有断线的情况下进行的。</strong></p>
+<p>（3）辅助保证从节点的数量和延迟：Redis主节点中使用min-slaves-to-write和min-slaves-max-lag参数，来保证主节点在不安全的情况下不会执行写命令；所谓不安全，是指从节点数量太少，或延迟过高。例如min-slaves-to-write和min-slaves-max-lag分别是3和10，含义是如果从节点数量小于3个，或所有从节点的延迟值都大于10s，则主节点拒绝执行写命令。而这里从节点延迟值的获取，就是通过主节点接收到REPLCONF ACK命令的时间来判断的，即前面所说的info Replication中的lag值。</p>
+<h1>六、应用中的问题</h1>
+<h2>1. 读写分离及其中的问题</h2>
+<p>在主从复制基础上实现的读写分离，可以实现Redis的读负载均衡：由主节点提供写服务，由一个或多个从节点提供读服务（多个从节点既可以提高数据冗余程度，也可以最大化读负载能力）；在读负载较大的应用场景下，可以大大提高Redis服务器的并发量。下面介绍在使用Redis读写分离时，需要注意的问题。</p>
+<h3>（1）延迟与不一致问题</h3>
+<p>前面已经讲到，由于主从复制的命令传播是异步的，延迟与数据的不一致不可避免。如果应用对数据不一致的接受程度程度较低，可能的优化措施包括：优化主从节点之间的网络环境（如在同机房部署）；监控主从节点延迟（通过offset）判断，如果从节点延迟过大，通知应用不再通过该从节点读取数据；使用集群同时扩展写负载和读负载等。</p>
+<p>在命令传播阶段以外的其他情况下，从节点的数据不一致可能更加严重，例如连接在数据同步阶段，或从节点失去与主节点的连接时等。从节点的slave-serve-stale-data参数便与此有关：它控制这种情况下从节点的表现；如果为yes（默认值），则从节点仍能够响应客户端的命令，如果为no，则从节点只能响应info、slaveof等少数命令。该参数的设置与应用对数据一致性的要求有关；如果对数据一致性要求很高，则应设置为no。</p>
+<h3>（2）数据过期问题</h3>
+<p>在单机版Redis中，存在两种删除策略：</p>
+<ul>
+<li>惰性删除：服务器不会主动删除数据，只有当客户端查询某个数据时，服务器判断该数据是否过期，如果过期则删除。</li>
+<li>定期删除：服务器执行定时任务删除过期数据，但是考虑到内存和CPU的折中（删除会释放内存，但是频繁的删除操作对CPU不友好），该删除的频率和执行时间都受到了限制。</li>
+</ul>
+<p>在主从复制场景下，为了主从节点的数据一致性，从节点不会主动删除数据，而是由主节点控制从节点中过期数据的删除。由于主节点的惰性删除和定期删除策略，都不能保证主节点及时对过期数据执行删除操作，因此，当客户端通过Redis从节点读取数据时，很容易读取到已经过期的数据。</p>
+<p>Redis 3.2中，从节点在读取数据时，增加了对数据是否过期的判断：如果该数据已过期，则不返回给客户端；将Redis升级到3.2可以解决数据过期问题。</p>
+<h3>（3）故障切换问题</h3>
+<p>在没有使用哨兵的读写分离场景下，应用针对读和写分别连接不同的Redis节点；当主节点或从节点出现问题而发生更改时，需要及时修改应用程序读写Redis数据的连接；连接的切换可以手动进行，或者自己写监控程序进行切换，但前者响应慢、容易出错，后者实现复杂，成本都不算低。</p>
+<h3>（4）总结</h3>
+<p>在使用读写分离之前，可以考虑其他方法增加Redis的读负载能力：如尽量优化主节点（减少慢查询、减少持久化等其他情况带来的阻塞等）提高负载能力；使用Redis集群同时提高读负载能力和写负载能力等。如果使用读写分离，可以使用哨兵，使主从节点的故障切换尽可能自动化，并减少对应用程序的侵入。</p>
+<h2>2. 复制超时问题</h2>
+<p>主从节点复制超时是导致复制中断的最重要的原因之一，本小节单独说明超时问题，下一小节说明其他会导致复制中断的问题。</p>
+<p><strong>超时判断意义</strong></p>
+<p>在复制连接建立过程中及之后，主从节点都有机制判断连接是否超时，其意义在于：</p>
+<p>（1）如果主节点判断连接超时，其会释放相应从节点的连接，从而释放各种资源，否则无效的从节点仍会占用主节点的各种资源（输出缓冲区、带宽、连接等）；此外连接超时的判断可以让主节点更准确的知道当前有效从节点的个数，有助于保证数据安全（配合前面讲到的min-slaves-to-write等参数）。</p>
+<p>（2）如果从节点判断连接超时，则可以及时重新建立连接，避免与主节点数据长期的不一致。</p>
+<p><strong>判断机制</strong></p>
+<p>主从复制超时判断的核心，在于repl-timeout参数，该参数规定了超时时间的阈值（默认60s），对于主节点和从节点同时有效；主从节点触发超时的条件分别如下：</p>
+<p>（1）主节点：每秒1次调用复制定时函数replicationCron()，在其中判断当前时间距离上次收到各个从节点REPLCONF ACK的时间，是否超过了repl-timeout值，如果超过了则释放相应从节点的连接。</p>
+<p>（2）从节点：从节点对超时的判断同样是在复制定时函数中判断，基本逻辑是：</p>
+<ul>
+<li>如果当前处于连接建立阶段，且距离上次收到主节点的信息的时间已超过repl-timeout，则释放与主节点的连接；</li>
+<li>如果当前处于数据同步阶段，且收到主节点的RDB文件的时间超时，则停止数据同步，释放连接；</li>
+<li>如果当前处于命令传播阶段，且距离上次收到主节点的PING命令或数据的时间已超过repl-timeout值，则释放与主节点的连接。</li>
+</ul>
+<p>主从节点判断连接超时的相关源代码如下：</p>
+<div>
+<!-- Crayon Syntax Highlighter v2.7.1.1 -->
+
+		<div id=""crayon-5b557aec3c442853895967"" class=""crayon-syntax crayon-theme-github crayon-font-monaco crayon-os-pc print-yes notranslate"" data-settings="" minimize scroll-always"" style="" margin-top: 12px; margin-bottom: 12px; font-size: 13px !important; line-height: 15px !important;"">
+		
+			<div class=""crayon-toolbar"" data-settings="" show"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><span class=""crayon-title""></span>
+			<div class=""crayon-tools"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><div class=""crayon-button crayon-nums-button"" title=""切换是否显示行编号""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-plain-button"" title=""纯文本显示代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-wrap-button"" title=""切换自动换行""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-expand-button"" title=""点击展开代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-copy-button"" title=""复制代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-popup-button"" title=""在新窗口中显示代码""><div class=""crayon-button-icon""></div></div></div></div>
+			<div class=""crayon-info"" style=""min-height: 18.2px !important; line-height: 18.2px !important;""></div>
+			<div class=""crayon-plain-wrap""><textarea wrap=""soft"" class=""crayon-plain print-no"" data-settings=""dblclick"" readonly style=""-moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4; font-size: 13px !important; line-height: 15px !important;"">
+/* Replication cron function, called 1 time per second. */
+void replicationCron(void) {
+    static long long replication_cron_loops = 0;
+
+    /* Non blocking connection timeout? */
+    if (server.masterhost &amp;&amp;
+        (server.repl_state == REDIS_REPL_CONNECTING ||
+         slaveIsInHandshakeState()) &amp;&amp;
+         (time(NULL)-server.repl_transfer_lastio) &gt; server.repl_timeout)
+    {
+        redisLog(REDIS_WARNING,""Timeout connecting to the MASTER..."");
+        undoConnectWithMaster();
+    }
+
+    /* Bulk transfer I/O timeout? */
+    if (server.masterhost &amp;&amp; server.repl_state == REDIS_REPL_TRANSFER &amp;&amp;
+        (time(NULL)-server.repl_transfer_lastio) &gt; server.repl_timeout)
+    {
+        redisLog(REDIS_WARNING,""Timeout receiving bulk data from MASTER... If the problem persists try to set the 'repl-timeout' parameter in redis.conf to a larger value."");
+        replicationAbortSyncTransfer();
+    }
+
+    /* Timed out master when we are an already connected slave? */
+    if (server.masterhost &amp;&amp; server.repl_state == REDIS_REPL_CONNECTED &amp;&amp;
+        (time(NULL)-server.master-&gt;lastinteraction) &gt; server.repl_timeout)
+    {
+        redisLog(REDIS_WARNING,""MASTER timeout: no data nor PING received..."");
+        freeClient(server.master);
+    }
+
+    //此处省略无关代码……
+
+    /* Disconnect timedout slaves. */
+    if (listLength(server.slaves)) {
+        listIter li;
+        listNode *ln;
+        listRewind(server.slaves,&amp;li);
+        while((ln = listNext(&amp;li))) {
+            redisClient *slave = ln-&gt;value;
+            if (slave-&gt;replstate != REDIS_REPL_ONLINE) continue;
+            if (slave-&gt;flags &amp; REDIS_PRE_PSYNC) continue;
+            if ((server.unixtime - slave-&gt;repl_ack_time) &gt; server.repl_timeout)
+            {
+                redisLog(REDIS_WARNING, ""Disconnecting timedout slave: %s"",
+                    replicationGetSlaveName(slave));
+                freeClient(slave);
+            }
+        }
+    }
+
+    //此处省略无关代码……
+
+}</textarea></div>
+			<div class=""crayon-main"" style="""">
+				<table class=""crayon-table"">
+					<tr class=""crayon-row"">
+				<td class=""crayon-nums "" data-settings=""show"">
+					<div class=""crayon-nums-content"" style=""font-size: 13px !important; line-height: 15px !important;""><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-1"">1</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-2"">2</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-3"">3</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-4"">4</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-5"">5</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-6"">6</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-7"">7</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-8"">8</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-9"">9</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-10"">10</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-11"">11</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-12"">12</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-13"">13</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-14"">14</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-15"">15</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-16"">16</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-17"">17</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-18"">18</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-19"">19</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-20"">20</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-21"">21</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-22"">22</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-23"">23</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-24"">24</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-25"">25</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-26"">26</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-27"">27</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-28"">28</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-29"">29</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-30"">30</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-31"">31</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-32"">32</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-33"">33</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-34"">34</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-35"">35</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-36"">36</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-37"">37</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-38"">38</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-39"">39</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-40"">40</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-41"">41</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-42"">42</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-43"">43</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-44"">44</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-45"">45</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-46"">46</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-47"">47</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-48"">48</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-49"">49</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-50"">50</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-51"">51</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b557aec3c442853895967-52"">52</div><div class=""crayon-num"" data-line=""crayon-5b557aec3c442853895967-53"">53</div></div>
+				</td>
+						<td class=""crayon-code""><div class=""crayon-pre"" style=""font-size: 13px !important; line-height: 15px !important; -moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4;""><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-1""><span class=""crayon-c"">/* Replication cron function, called 1 time per second. */</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-2""><span class=""crayon-t"">void</span><span class=""crayon-h""> </span><span class=""crayon-e"">replicationCron</span><span class=""crayon-sy"">(</span><span class=""crayon-t"">void</span><span class=""crayon-sy"">)</span><span class=""crayon-h""> </span><span class=""crayon-sy"">{</span></div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-3""><span class=""crayon-h"">    </span><span class=""crayon-m"">static</span><span class=""crayon-h""> </span><span class=""crayon-t"">long</span><span class=""crayon-h""> </span><span class=""crayon-t"">long</span><span class=""crayon-h""> </span><span class=""crayon-v"">replication_cron_loops</span><span class=""crayon-h""> </span><span class=""crayon-o"">=</span><span class=""crayon-h""> </span><span class=""crayon-cn"">0</span><span class=""crayon-sy"">;</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-4""> </div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-5""><span class=""crayon-h"">    </span><span class=""crayon-c"">/* Non blocking connection timeout? */</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-6""><span class=""crayon-h"">    </span><span class=""crayon-st"">if</span><span class=""crayon-h""> </span><span class=""crayon-sy"">(</span><span class=""crayon-v"">server</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">masterhost</span><span class=""crayon-h""> </span><span class=""crayon-o"">&amp;&amp;</span></div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-7""><span class=""crayon-h"">        </span><span class=""crayon-sy"">(</span><span class=""crayon-v"">server</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">repl_state</span><span class=""crayon-h""> </span><span class=""crayon-o"">==</span><span class=""crayon-h""> </span><span class=""crayon-v"">REDIS_REPL_CONNECTING</span><span class=""crayon-h""> </span><span class=""crayon-o"">||</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-8""><span class=""crayon-h"">         </span><span class=""crayon-e"">slaveIsInHandshakeState</span><span class=""crayon-sy"">(</span><span class=""crayon-sy"">)</span><span class=""crayon-sy"">)</span><span class=""crayon-h""> </span><span class=""crayon-o"">&amp;&amp;</span></div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-9""><span class=""crayon-h"">         </span><span class=""crayon-sy"">(</span><span class=""crayon-e"">time</span><span class=""crayon-sy"">(</span><span class=""crayon-t"">NULL</span><span class=""crayon-sy"">)</span><span class=""crayon-o"">-</span><span class=""crayon-v"">server</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">repl_transfer_lastio</span><span class=""crayon-sy"">)</span><span class=""crayon-h""> </span><span class=""crayon-o"">&gt;</span><span class=""crayon-h""> </span><span class=""crayon-v"">server</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">repl_timeout</span><span class=""crayon-sy"">)</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-10""><span class=""crayon-h"">    </span><span class=""crayon-sy"">{</span></div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-11""><span class=""crayon-h"">        </span><span class=""crayon-e"">redisLog</span><span class=""crayon-sy"">(</span><span class=""crayon-v"">REDIS_WARNING</span><span class=""crayon-sy"">,</span><span class=""crayon-s"">""Timeout connecting to the MASTER...""</span><span class=""crayon-sy"">)</span><span class=""crayon-sy"">;</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-12""><span class=""crayon-h"">        </span><span class=""crayon-e"">undoConnectWithMaster</span><span class=""crayon-sy"">(</span><span class=""crayon-sy"">)</span><span class=""crayon-sy"">;</span></div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-13""><span class=""crayon-h"">    </span><span class=""crayon-sy"">}</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-14""> </div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-15""><span class=""crayon-h"">    </span><span class=""crayon-c"">/* Bulk transfer I/O timeout? */</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-16""><span class=""crayon-h"">    </span><span class=""crayon-st"">if</span><span class=""crayon-h""> </span><span class=""crayon-sy"">(</span><span class=""crayon-v"">server</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">masterhost</span><span class=""crayon-h""> </span><span class=""crayon-o"">&amp;&amp;</span><span class=""crayon-h""> </span><span class=""crayon-v"">server</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">repl_state</span><span class=""crayon-h""> </span><span class=""crayon-o"">==</span><span class=""crayon-h""> </span><span class=""crayon-v"">REDIS_REPL_TRANSFER</span><span class=""crayon-h""> </span><span class=""crayon-o"">&amp;&amp;</span></div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-17""><span class=""crayon-h"">        </span><span class=""crayon-sy"">(</span><span class=""crayon-e"">time</span><span class=""crayon-sy"">(</span><span class=""crayon-t"">NULL</span><span class=""crayon-sy"">)</span><span class=""crayon-o"">-</span><span class=""crayon-v"">server</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">repl_transfer_lastio</span><span class=""crayon-sy"">)</span><span class=""crayon-h""> </span><span class=""crayon-o"">&gt;</span><span class=""crayon-h""> </span><span class=""crayon-v"">server</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">repl_timeout</span><span class=""crayon-sy"">)</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-18""><span class=""crayon-h"">    </span><span class=""crayon-sy"">{</span></div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-19""><span class=""crayon-h"">        </span><span class=""crayon-e"">redisLog</span><span class=""crayon-sy"">(</span><span class=""crayon-v"">REDIS_WARNING</span><span class=""crayon-sy"">,</span><span class=""crayon-s"">""Timeout receiving bulk data from MASTER... If the problem persists try to set the 'repl-timeout' parameter in redis.conf to a larger value.""</span><span class=""crayon-sy"">)</span><span class=""crayon-sy"">;</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-20""><span class=""crayon-h"">        </span><span class=""crayon-e"">replicationAbortSyncTransfer</span><span class=""crayon-sy"">(</span><span class=""crayon-sy"">)</span><span class=""crayon-sy"">;</span></div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-21""><span class=""crayon-h"">    </span><span class=""crayon-sy"">}</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-22""> </div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-23""><span class=""crayon-h"">    </span><span class=""crayon-c"">/* Timed out master when we are an already connected slave? */</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-24""><span class=""crayon-h"">    </span><span class=""crayon-st"">if</span><span class=""crayon-h""> </span><span class=""crayon-sy"">(</span><span class=""crayon-v"">server</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">masterhost</span><span class=""crayon-h""> </span><span class=""crayon-o"">&amp;&amp;</span><span class=""crayon-h""> </span><span class=""crayon-v"">server</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">repl_state</span><span class=""crayon-h""> </span><span class=""crayon-o"">==</span><span class=""crayon-h""> </span><span class=""crayon-v"">REDIS_REPL_CONNECTED</span><span class=""crayon-h""> </span><span class=""crayon-o"">&amp;&amp;</span></div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-25""><span class=""crayon-h"">        </span><span class=""crayon-sy"">(</span><span class=""crayon-e"">time</span><span class=""crayon-sy"">(</span><span class=""crayon-t"">NULL</span><span class=""crayon-sy"">)</span><span class=""crayon-o"">-</span><span class=""crayon-v"">server</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">master</span><span class=""crayon-o"">-&gt;</span><span class=""crayon-v"">lastinteraction</span><span class=""crayon-sy"">)</span><span class=""crayon-h""> </span><span class=""crayon-o"">&gt;</span><span class=""crayon-h""> </span><span class=""crayon-v"">server</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">repl_timeout</span><span class=""crayon-sy"">)</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-26""><span class=""crayon-h"">    </span><span class=""crayon-sy"">{</span></div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-27""><span class=""crayon-h"">        </span><span class=""crayon-e"">redisLog</span><span class=""crayon-sy"">(</span><span class=""crayon-v"">REDIS_WARNING</span><span class=""crayon-sy"">,</span><span class=""crayon-s"">""MASTER timeout: no data nor PING received...""</span><span class=""crayon-sy"">)</span><span class=""crayon-sy"">;</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-28""><span class=""crayon-h"">        </span><span class=""crayon-e"">freeClient</span><span class=""crayon-sy"">(</span><span class=""crayon-v"">server</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">master</span><span class=""crayon-sy"">)</span><span class=""crayon-sy"">;</span></div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-29""><span class=""crayon-h"">    </span><span class=""crayon-sy"">}</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-30""> </div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-31""><span class=""crayon-h"">    </span><span class=""crayon-c"">//此处省略无关代码……</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-32""> </div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-33""><span class=""crayon-h"">    </span><span class=""crayon-c"">/* Disconnect timedout slaves. */</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-34""><span class=""crayon-h"">    </span><span class=""crayon-st"">if</span><span class=""crayon-h""> </span><span class=""crayon-sy"">(</span><span class=""crayon-e"">listLength</span><span class=""crayon-sy"">(</span><span class=""crayon-v"">server</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">slaves</span><span class=""crayon-sy"">)</span><span class=""crayon-sy"">)</span><span class=""crayon-h""> </span><span class=""crayon-sy"">{</span></div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-35""><span class=""crayon-h"">        </span><span class=""crayon-e"">listIter </span><span class=""crayon-v"">li</span><span class=""crayon-sy"">;</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-36""><span class=""crayon-h"">        </span><span class=""crayon-e "">listNode *</span><span class=""crayon-v"">ln</span><span class=""crayon-sy"">;</span></div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-37""><span class=""crayon-h"">        </span><span class=""crayon-e"">listRewind</span><span class=""crayon-sy"">(</span><span class=""crayon-v"">server</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">slaves</span><span class=""crayon-sy"">,</span><span class=""crayon-o"">&amp;</span><span class=""crayon-v"">li</span><span class=""crayon-sy"">)</span><span class=""crayon-sy"">;</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-38""><span class=""crayon-h"">        </span><span class=""crayon-st"">while</span><span class=""crayon-sy"">(</span><span class=""crayon-sy"">(</span><span class=""crayon-v"">ln</span><span class=""crayon-h""> </span><span class=""crayon-o"">=</span><span class=""crayon-h""> </span><span class=""crayon-e"">listNext</span><span class=""crayon-sy"">(</span><span class=""crayon-o"">&amp;</span><span class=""crayon-v"">li</span><span class=""crayon-sy"">)</span><span class=""crayon-sy"">)</span><span class=""crayon-sy"">)</span><span class=""crayon-h""> </span><span class=""crayon-sy"">{</span></div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-39""><span class=""crayon-h"">            </span><span class=""crayon-e "">redisClient *</span><span class=""crayon-v"">slave</span><span class=""crayon-h""> </span><span class=""crayon-o"">=</span><span class=""crayon-h""> </span><span class=""crayon-v"">ln</span><span class=""crayon-o"">-&gt;</span><span class=""crayon-v"">value</span><span class=""crayon-sy"">;</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-40""><span class=""crayon-h"">            </span><span class=""crayon-st"">if</span><span class=""crayon-h""> </span><span class=""crayon-sy"">(</span><span class=""crayon-v"">slave</span><span class=""crayon-o"">-&gt;</span><span class=""crayon-v"">replstate</span><span class=""crayon-h""> </span><span class=""crayon-o"">!=</span><span class=""crayon-h""> </span><span class=""crayon-v"">REDIS_REPL_ONLINE</span><span class=""crayon-sy"">)</span><span class=""crayon-h""> </span><span class=""crayon-st"">continue</span><span class=""crayon-sy"">;</span></div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-41""><span class=""crayon-h"">            </span><span class=""crayon-st"">if</span><span class=""crayon-h""> </span><span class=""crayon-sy"">(</span><span class=""crayon-v"">slave</span><span class=""crayon-o"">-&gt;</span><span class=""crayon-v"">flags</span><span class=""crayon-h""> </span><span class=""crayon-o"">&amp;</span><span class=""crayon-h""> </span><span class=""crayon-v"">REDIS_PRE_PSYNC</span><span class=""crayon-sy"">)</span><span class=""crayon-h""> </span><span class=""crayon-st"">continue</span><span class=""crayon-sy"">;</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-42""><span class=""crayon-h"">            </span><span class=""crayon-st"">if</span><span class=""crayon-h""> </span><span class=""crayon-sy"">(</span><span class=""crayon-sy"">(</span><span class=""crayon-v"">server</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">unixtime</span><span class=""crayon-h""> </span><span class=""crayon-o"">-</span><span class=""crayon-h""> </span><span class=""crayon-v"">slave</span><span class=""crayon-o"">-&gt;</span><span class=""crayon-v"">repl_ack_time</span><span class=""crayon-sy"">)</span><span class=""crayon-h""> </span><span class=""crayon-o"">&gt;</span><span class=""crayon-h""> </span><span class=""crayon-v"">server</span><span class=""crayon-sy"">.</span><span class=""crayon-v"">repl_timeout</span><span class=""crayon-sy"">)</span></div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-43""><span class=""crayon-h"">            </span><span class=""crayon-sy"">{</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-44""><span class=""crayon-h"">                </span><span class=""crayon-e"">redisLog</span><span class=""crayon-sy"">(</span><span class=""crayon-v"">REDIS_WARNING</span><span class=""crayon-sy"">,</span><span class=""crayon-h""> </span><span class=""crayon-s"">""Disconnecting timedout slave: %s""</span><span class=""crayon-sy"">,</span></div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-45""><span class=""crayon-h"">                    </span><span class=""crayon-e"">replicationGetSlaveName</span><span class=""crayon-sy"">(</span><span class=""crayon-v"">slave</span><span class=""crayon-sy"">)</span><span class=""crayon-sy"">)</span><span class=""crayon-sy"">;</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-46""><span class=""crayon-h"">                </span><span class=""crayon-e"">freeClient</span><span class=""crayon-sy"">(</span><span class=""crayon-v"">slave</span><span class=""crayon-sy"">)</span><span class=""crayon-sy"">;</span></div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-47""><span class=""crayon-h"">            </span><span class=""crayon-sy"">}</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-48""><span class=""crayon-h"">        </span><span class=""crayon-sy"">}</span></div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-49""><span class=""crayon-h"">    </span><span class=""crayon-sy"">}</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-50""> </div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-51""><span class=""crayon-h"">    </span><span class=""crayon-c"">//此处省略无关代码……</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b557aec3c442853895967-52""> </div><div class=""crayon-line"" id=""crayon-5b557aec3c442853895967-53""><span class=""crayon-sy"">}</span></div></div></td>
+					</tr>
+				</table>
+			</div>
+		</div>
+<!-- [Format Time: 0.0184 seconds] -->
+
+</div>
+<p><strong>需要注意的坑</strong></p>
+<p>下面介绍与复制阶段连接超时有关的一些实际问题：</p>
+<p>（1）数据同步阶段：在主从节点进行全量复制bgsave时，主节点需要首先fork子进程将当前数据保存到RDB文件中，然后再将RDB文件通过网络传输到从节点。如果RDB文件过大，主节点在fork子进程+保存RDB文件时耗时过多，可能会导致从节点长时间收不到数据而触发超时；此时从节点会重连主节点，然后再次全量复制，再次超时，再次重连……这是个悲伤的循环。为了避免这种情况的发生，除了注意Redis单机数据量不要过大，另一方面就是适当增大repl-timeout值，具体的大小可以根据bgsave耗时来调整。</p>
+<p>（2）命令传播阶段：如前所述，在该阶段主节点会向从节点发送PING命令，频率由repl-ping-slave-period控制；该参数应明显小于repl-timeout值(后者至少是前者的几倍)。否则，如果两个参数相等或接近，网络抖动导致个别PING命令丢失，此时恰巧主节点也没有向从节点发送数据，则从节点很容易判断超时。</p>
+<p>（3）慢查询导致的阻塞：如果主节点或从节点执行了一些慢查询（如keys *或者对大数据的hgetall等），导致服务器阻塞；阻塞期间无法响应复制连接中对方节点的请求，可能导致复制超时。</p>
+<h2>3. 复制中断问题</h2>
+<p>主从节点超时是复制中断的原因之一，除此之外，还有其他情况可能导致复制中断，其中最主要的是复制缓冲区溢出问题。</p>
+<h3>复制缓冲区溢出</h3>
+<p>前面曾提到过，在全量复制阶段，主节点会将执行的写命令放到复制缓冲区中，该缓冲区存放的数据包括了以下几个时间段内主节点执行的写命令：bgsave生成RDB文件、RDB文件由主节点发往从节点、从节点清空老数据并载入RDB文件中的数据。当主节点数据量较大，或者主从节点之间网络延迟较大时，可能导致该缓冲区的大小超过了限制，此时主节点会断开与从节点之间的连接；这种情况可能引起全量复制-&gt;复制缓冲区溢出导致连接中断-&gt;重连-&gt;全量复制-&gt;复制缓冲区溢出导致连接中断……的循环。</p>
+<p>复制缓冲区的大小由client-output-buffer-limit slave {hard limit} {soft limit} {soft seconds}配置，默认值为client-output-buffer-limit slave 256MB 64MB 60，其含义是：如果buffer大于256MB，或者连续60s大于64MB，则主节点会断开与该从节点的连接。该参数是可以通过config set命令动态配置的（即不重启Redis也可以生效）。</p>
+<p>当复制缓冲区溢出时，主节点打印日志如下所示：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/5a5a3405eca809876a29206e7e1e8d87.png"" alt=""""></p>
+<p><strong>需要注意的是，复制缓冲区是客户端输出缓冲区的一种，主节点会为每一个从节点分别分配复制缓冲区；而复制积压缓冲区则是一个主节点只有一个，无论它有多少个从节点。</strong></p>
+<h2>4. 各场景下复制的选择及优化技巧</h2>
+<p>在介绍了Redis复制的种种细节之后，现在我们可以来总结一下，在下面常见的场景中，何时使用部分复制，以及需要注意哪些问题。</p>
+<h3>（1）第一次建立复制</h3>
+<p>此时全量复制不可避免，但仍有几点需要注意：如果主节点的数据量较大，应该尽量避开流量的高峰期，避免造成阻塞；如果有多个从节点需要建立对主节点的复制，可以考虑将几个从节点错开，避免主节点带宽占用过大。此外，如果从节点过多，也可以调整主从复制的拓扑结构，由一主多从结构变为树状结构（中间的节点既是其主节点的从节点，也是其从节点的主节点）；但使用树状结构应该谨慎：虽然主节点的直接从节点减少，降低了主节点的负担，但是多层从节点的延迟增大，数据一致性变差；且结构复杂，维护相当困难。</p>
+<h3>（2）主节点重启</h3>
+<p>主节点重启可以分为两种情况来讨论，一种是故障导致宕机，另一种则是有计划的重启。</p>
+<p><strong>主节点宕机</strong></p>
+<p>主节点宕机重启后，runid会发生变化，因此不能进行部分复制，只能全量复制。</p>
+<p>实际上在主节点宕机的情况下，应进行故障转移处理，将其中的一个从节点升级为主节点，其他从节点从新的主节点进行复制；且故障转移应尽量的自动化，后面文章将要介绍的哨兵便可以进行自动的故障转移。</p>
+<p><strong>安全重启：debug reload</strong></p>
+<p>在一些场景下，可能希望对主节点进行重启，例如主节点内存碎片率过高，或者希望调整一些只能在启动时调整的参数。如果使用普通的手段重启主节点，会使得runid发生变化，可能导致不必要的全量复制。</p>
+<p>为了解决这个问题，Redis提供了debug reload的重启方式：<strong>重启后，主节点的</strong><strong>runid</strong><strong>和offset</strong><strong>都不受影响，</strong>避免了全量复制。</p>
+<p>如下图所示，debug reload重启后runid和offset都未受影响：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/6a0ba809748a0d80d181b9b9c05b10f5.png"" alt=""""></p>
+<p>但debug reload是一柄双刃剑：它会清空当前内存中的数据，重新从RDB文件中加载，这个过程会导致主节点的阻塞，因此也需要谨慎。</p>
+<h3>（3）从节点重启</h3>
+<p>从节点宕机重启后，其保存的主节点的runid会丢失，因此即使再次执行slaveof，也无法进行部分复制。</p>
+<h3>（4）网络中断</h3>
+<p>如果主从节点之间出现网络问题，造成短时间内网络中断，可以分为多种情况讨论。</p>
+<p>第一种情况：网络问题时间极为短暂，只造成了短暂的丢包，主从节点都没有判定超时（未触发repl-timeout）；此时只需要通过REPLCONF ACK来补充丢失的数据即可。</p>
+<p>第二种情况：网络问题时间很长，主从节点判断超时（触发了repl-timeout），且丢失的数据过多，超过了复制积压缓冲区所能存储的范围；此时主从节点无法进行部分复制，只能进行全量复制。为了尽可能避免这种情况的发生，应该根据实际情况适当调整复制积压缓冲区的大小；此外及时发现并修复网络中断，也可以减少全量复制。</p>
+<p>第三种情况：介于前述两种情况之间，主从节点判断超时，且丢失的数据仍然都在复制积压缓冲区中；此时主从节点可以进行部分复制。</p>
+<h2>5. 复制相关的配置</h2>
+<p>这一节总结一下与复制有关的配置，说明这些配置的作用、起作用的阶段，以及配置方法等；通过了解这些配置，一方面加深对Redis复制的了解，另一方面掌握这些配置的方法，可以优化Redis的使用，少走坑。</p>
+<p>配置大致可以分为主节点相关配置、从节点相关配置以及与主从节点都有关的配置，下面分别说明。</p>
+<h3>（1）与主从节点都有关的配置</h3>
+<p>首先介绍最特殊的配置，它决定了该节点是主节点还是从节点：</p>
+<p>1)   slaveof &lt;masterip&gt; &lt;masterport&gt;：Redis启动时起作用；作用是建立复制关系，开启了该配置的Redis服务器在启动后成为从节点。该注释默认注释掉，即Redis服务器默认都是主节点。</p>
+<p>2)   repl-timeout 60：与各个阶段主从节点连接超时判断有关，见前面的介绍。</p>
+<h3>（2）主节点相关配置</h3>
+<p>1)   repl-diskless-sync no：作用于全量复制阶段，控制主节点是否使用diskless复制（无盘复制）。所谓diskless复制，是指在全量复制时，主节点不再先把数据写入RDB文件，而是直接写入slave的socket中，整个过程中不涉及硬盘；diskless复制在磁盘IO很慢而网速很快时更有优势。需要注意的是，截至Redis3.0，diskless复制处于实验阶段，默认是关闭的。</p>
+<p>2)   repl-diskless-sync-delay 5：该配置作用于全量复制阶段，当主节点使用diskless复制时，该配置决定主节点向从节点发送之前停顿的时间，单位是秒；只有当diskless复制打开时有效，默认5s。之所以设置停顿时间，是基于以下两个考虑：(1)向slave的socket的传输一旦开始，新连接的slave只能等待当前数据传输结束，才能开始新的数据传输 (2)多个从节点有较大的概率在短时间内建立主从复制。</p>
+<p>3)   client-output-buffer-limit slave 256MB 64MB 60：与全量复制阶段主节点的缓冲区大小有关，见前面的介绍。</p>
+<p>4)   repl-disable-tcp-nodelay no：与命令传播阶段的延迟有关，见前面的介绍。</p>
+<p>5)   masterauth &lt;master-password&gt;：与连接建立阶段的身份验证有关，见前面的介绍。</p>
+<p>6)   repl-ping-slave-period 10：与命令传播阶段主从节点的超时判断有关，见前面的介绍。</p>
+<p>7)   repl-backlog-size 1mb：复制积压缓冲区的大小，见前面的介绍。</p>
+<p>8)   repl-backlog-ttl 3600：当主节点没有从节点时，复制积压缓冲区保留的时间，这样当断开的从节点重新连进来时，可以进行全量复制；默认3600s。如果设置为0，则永远不会释放复制积压缓冲区。</p>
+<p>9)   min-slaves-to-write 3与min-slaves-max-lag 10：规定了主节点的最小从节点数目，及对应的最大延迟，见前面的介绍。</p>
+<h3>（3）从节点相关配置</h3>
+<p>1)   slave-serve-stale-data yes：与从节点数据陈旧时是否响应客户端命令有关，见前面的介绍。</p>
+<p>2)   slave-read-only yes：从节点是否只读；默认是只读的。由于从节点开启写操作容易导致主从节点的数据不一致，因此该配置尽量不要修改。</p>
+<h2>6. 单机内存大小限制</h2>
+<p>在 <a href=""http://blog.jobbole.com/114093/"" target=""_blank"">深入学习Redis（2）：持久化</a> 一文中，讲到了fork操作对Redis单机内存大小的限制。实际上在Redis的使用中，限制单机内存大小的因素非常之多，下面总结一下在主从复制中，单机内存过大可能造成的影响：</p>
+<p>（1）切主：当主节点宕机时，一种常见的容灾策略是将其中一个从节点提升为主节点，并将其他从节点挂载到新的主节点上，此时这些从节点只能进行全量复制；如果Redis单机内存达到10GB，一个从节点的同步时间在几分钟的级别；如果从节点较多，恢复的速度会更慢。如果系统的读负载很高，而这段时间从节点无法提供服务，会对系统造成很大的压力。</p>
+<p>（2）从库扩容：如果访问量突然增大，此时希望增加从节点分担读负载，如果数据量过大，从节点同步太慢，难以及时应对访问量的暴增。</p>
+<p>（3）缓冲区溢出：（1）和（2）都是从节点可以正常同步的情形（虽然慢），但是如果数据量过大，导致全量复制阶段主节点的复制缓冲区溢出，从而导致复制中断，则主从节点的数据同步会全量复制-&gt;复制缓冲区溢出导致复制中断-&gt;重连-&gt;全量复制-&gt;复制缓冲区溢出导致复制中断……的循环。</p>
+<p>（4）超时：如果数据量过大，全量复制阶段主节点fork+保存RDB文件耗时过大，从节点长时间接收不到数据触发超时，主从节点的数据同步同样可能陷入全量复制-&gt;超时导致复制中断-&gt;重连-&gt;全量复制-&gt;超时导致复制中断……的循环。</p>
+<p>此外，主节点单机内存除了绝对量不能太大，其占用主机内存的比例也不应过大：最好只使用50%-65%的内存，留下30%-45%的内存用于执行bgsave命令和创建复制缓冲区等。</p>
+<h2>7. info Replication</h2>
+<p>在Redis客户端通过info Replication可以查看与复制相关的状态，对于了解主从节点的当前状态，以及解决出现的问题都会有帮助。</p>
+<p>主节点：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/8a91b888c025f2ff104cfca78009de3c.png"" alt=""""></p>
+<p>从节点：</p>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/07/9c94677975e945dc3d9caf2dcc75f130.png"" alt=""""></p>
+<p>对于从节点，上半部分展示的是其作为从节点的状态，从connectd_slaves开始，展示的是其作为潜在的主节点的状态。</p>
+<p>info Replication中展示的大部分内容在文章中都已经讲述，这里不再详述。</p>
+<h1>七、总结</h1>
+<p>下面回顾一下本文的主要内容：</p>
+<p>1、主从复制的作用：宏观的了解主从复制是为了解决什么样的问题，即数据冗余、故障恢复、读负载均衡等。</p>
+<p>2、主从复制的操作：即slaveof命令。</p>
+<p>3、主从复制的原理：主从复制包括了连接建立阶段、数据同步阶段、命令传播阶段；其中数据同步阶段，有全量复制和部分复制两种数据同步方式；命令传播阶段，主从节点之间有PING和REPLCONF ACK命令互相进行心跳检测。</p>
+<p>4、应用中的问题：包括读写分离的问题（数据不一致问题、数据过期问题、故障切换问题等）、复制超时问题、复制中断问题等，然后总结了主从复制相关的配置，其中repl-timeout、client-output-buffer-limit slave等对解决Redis主从复制中出现的问题可能会有帮助。</p>
+<p>主从复制虽然解决或缓解了数据冗余、故障恢复、读负载均衡等问题，但其缺陷仍很明显：故障恢复无法自动化；写操作无法负载均衡；存储能力受到单机的限制；这些问题的解决，需要哨兵和集群的帮助，我将在后面的文章中介绍，欢迎关注。</p>
+<h1>参考文献</h1>
+<p>《Redis开发与运维》</p>
+<p>《Redis设计与实现》</p>
+<p>《Redis实战》</p>
+<blockquote class=""wp-embedded-content"" data-secret=""CFj9egBfO0""><p><a href=""http://mdba.cn/2015/03/16/redis%e5%a4%8d%e5%88%b6%e4%b8%ad%e6%96%ad%e9%97%ae%e9%a2%98-%e6%85%a2%e6%9f%a5%e8%af%a2/"">redis主从复制（1）— 慢查询导致复制中断</a></p></blockquote>
+<p><iframe class=""wp-embedded-content"" sandbox=""allow-scripts"" security=""restricted"" style=""position: absolute; clip: rect(1px, 1px, 1px, 1px);"" src=""http://mdba.cn/2015/03/16/redis%e5%a4%8d%e5%88%b6%e4%b8%ad%e6%96%ad%e9%97%ae%e9%a2%98-%e6%85%a2%e6%9f%a5%e8%af%a2/embed/#?secret=CFj9egBfO0"" data-secret=""CFj9egBfO0"" width=""600"" height=""338"" title=""《redis主从复制（1）— 慢查询导致复制中断》—DBA的罗浮宫"" frameborder=""0"" marginwidth=""0"" marginheight=""0"" scrolling=""no""></iframe></p>
+<blockquote class=""wp-embedded-content"" data-secret=""JuAJkx6Lpr""><p><a href=""https://redislabs.com/blog/top-redis-headaches-for-devops-replication-buffer/"">Top Redis Headaches for Devops – Replication Buffer</a></p></blockquote>
+<p><iframe class=""wp-embedded-content"" sandbox=""allow-scripts"" security=""restricted"" style=""position: absolute; clip: rect(1px, 1px, 1px, 1px);"" src=""https://redislabs.com/blog/top-redis-headaches-for-devops-replication-buffer/embed/#?secret=JuAJkx6Lpr"" data-secret=""JuAJkx6Lpr"" width=""600"" height=""338"" title=""“Top Redis Headaches for Devops – Replication Buffer” — Redis Labs"" frameborder=""0"" marginwidth=""0"" marginheight=""0"" scrolling=""no""></iframe></p>
+<blockquote class=""wp-embedded-content"" data-secret=""KtHjsj0weV""><p><a href=""http://mdba.cn/2015/03/17/redis%e4%b8%bb%e4%bb%8e%e5%a4%8d%e5%88%b6%ef%bc%882%ef%bc%89-replication-buffer%e4%b8%8ereplication-backlog/"">redis主从复制（2）— replication buffer与replication backlog</a></p></blockquote>
+<p><iframe class=""wp-embedded-content"" sandbox=""allow-scripts"" security=""restricted"" style=""position: absolute; clip: rect(1px, 1px, 1px, 1px);"" src=""http://mdba.cn/2015/03/17/redis%e4%b8%bb%e4%bb%8e%e5%a4%8d%e5%88%b6%ef%bc%882%ef%bc%89-replication-buffer%e4%b8%8ereplication-backlog/embed/#?secret=KtHjsj0weV"" data-secret=""KtHjsj0weV"" width=""600"" height=""338"" title=""《redis主从复制（2）— replication buffer与replication backlog》—DBA的罗浮宫"" frameborder=""0"" marginwidth=""0"" marginheight=""0"" scrolling=""no""></iframe></p>
+<p><a href=""https://github.com/antirez/redis/issues/918"">https://github.com/antirez/redis/issues/918</a></p>
+<p>https://blog.csdn.net/qbw2010/article/details/50496982</p>
+<p>https://mp.weixin.qq.com/s?__biz=MzIxMzEzMjM5NQ==&amp;mid=2651029484&amp;idx=1&amp;sn=5882f4c7c390a0a0e4f6dfd872e203b5&amp;chksm=8c4caae8bb3b23fe77909e307d45a071186f55069e5207602c61383eab573885615c1d835904&amp;mpshare=1&amp;scene=1&amp;srcid=0327SokqtxEY3WojWNDMHLYl#rd</p>
+
+        
+        
+        
+    <div class=""post-adds"">
+        <span data-post-id=""114194"" class="" btn-bluet-bigger href-style vote-post-up   register-user-only ""><i class=""fa  fa-thumbs-o-up""></i> <h10 id=""114194votetotal"">1</h10> 赞</span>
+        <span data-book-type=""1"" data-site-id=""2"" data-item-id=""114194"" data-item-type=""1"" class="" btn-bluet-bigger href-style bookmark-btn  register-user-only ""><i class=""fa fa-bookmark-o  ""></i>  收藏</span>
+
+                    <a href=""#article-comment""><span class=""btn-bluet-bigger href-style hide-on-480""><i class=""fa fa-comments-o""></i>  评论</span></a>
+        
+        
+        
+        <!-- JiaThis Button BEGIN -->
+        <div class=""jiathis_style_24x24"" style=""display: inline-flex; position: relative; margin: 0; clear: both;float: right;"">
+            <a class=""jiathis_button_tsina""></a>
+            <a class=""jiathis_button_weixin""></a>
+            <a class=""jiathis_button_qzone""></a>
+            <a class=""jiathis_button_fb hide-on-480""></a>
+            <a href=""http://www.jiathis.com/share?uid=1745061"" class=""jiathis jiathis_txt jiathis_separator jtico jtico_jiathis"" target=""_blank""></a>
+        </div>
+
+    </div>
+
+
+
+
+        <!-- BEGIN #author-bio -->
+
+
+<!-- END #author-bio -->
+	</div>",2018/07/05,,http://jbcdn2.b0.upaiyun.com/2016/04/49961db8952e63d98b519b76a2daa5e2.png,1,"IT技术,Redis,数据库",深入学习 Redis（3）：主从复制,http://blog.jobbole.com/114194/,114194
+0,0,"<div class=""entry"">
+
+        			<div class=""textwidget""></div>
+		
+		<div class=""copyright-area"">原文出处： <a ref=""nofollow"" target=""_blank"" href=""https://kerneltalks.com/virtualization/8-basic-docker-container-management-commands/"">Shrikant Lavhate</a>   译文出处：<a target=""_blank"" href=""https://linux.cn/article-9768-1.html"">Linux中国/Lonaparte_CHENG</a>   </div><blockquote><p>利用这 8 个命令可以学习 Docker 容器的基本管理方式。这是一个为 Docker 初学者准备的，带有示范命令输出的指南。</p></blockquote>
+<p><img class=""aligncenter"" src=""http://jbcdn2.b0.upaiyun.com/2018/06/91d1e9a10762cf7191f39f8e66ebefa7.png"" alt=""Docker 容器管理命令""></p>
+<p>在这篇文章中，我们将带你学习 8 个基本的 Docker 容器命令，它们操控着 Docker 容器的基本活动，例如 运行run、 列举list、 停止stop、 查看历史纪录logs、 删除delete 等等。如果你对 Docker 的概念很陌生，推荐你看看我们的 <a href=""https://kerneltalks.com/virtualization/what-is-docker-introduction-guide-to-docker/"">介绍指南</a>，来了解 Docker 的基本内容以及 <a href=""https://kerneltalks.com/virtualization/how-to-install-docker-in-linux/"">如何</a> 在 Linux 上安装 Docker。 现在让我们赶快进入要了解的命令：</p>
+<h3 id=""toc_1"">如何运行 Docker 容器？</h3>
+<p>众所周知，Docker 容器只是一个运行于宿主操作系统host OS上的应用进程，所以你需要一个镜像来运行它。Docker 镜像以进程的方式运行时就叫做 Docker 容器。你可以加载本地 Docker 镜像，也可以从 Docker Hub 上下载。Docker Hub 是一个提供公有和私有镜像来进行拉取pull操作的集中仓库。官方的 Docker Hub 位于 <a href=""https://hub.docker.com/"">hub.docker.com</a>。 当你指示 Docker 引擎运行容器时，它会首先搜索本地镜像，如果没有找到，它会从 Docker Hub 上拉取相应的镜像。</p>
+<p>让我们运行一个 Apache web 服务器的 Docker 镜像，比如 httpd 进程。你需要运行 <code>docker container run</code> 命令。旧的命令为 <code>docker run</code>， 但后来 Docker 添加了子命令部分，所以新版本支持下列命令：</p><!-- Crayon Syntax Highlighter v2.7.1.1 -->
+
+		<div id=""crayon-5b556224509c1501723361"" class=""crayon-syntax crayon-theme-github crayon-font-monaco crayon-os-pc print-yes notranslate"" data-settings="" minimize scroll-always"" style="" margin-top: 12px; margin-bottom: 12px; font-size: 13px !important; line-height: 15px !important;"">
+		
+			<div class=""crayon-toolbar"" data-settings="" show"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><span class=""crayon-title""></span>
+			<div class=""crayon-tools"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><div class=""crayon-button crayon-nums-button"" title=""切换是否显示行编号""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-plain-button"" title=""纯文本显示代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-wrap-button"" title=""切换自动换行""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-expand-button"" title=""点击展开代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-copy-button"" title=""复制代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-popup-button"" title=""在新窗口中显示代码""><div class=""crayon-button-icon""></div></div></div></div>
+			<div class=""crayon-info"" style=""min-height: 18.2px !important; line-height: 18.2px !important;""></div>
+			<div class=""crayon-plain-wrap""><textarea wrap=""soft"" class=""crayon-plain print-no"" data-settings=""dblclick"" readonly style=""-moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4; font-size: 13px !important; line-height: 15px !important;"">
+root@kerneltalks # docker container run -d -p 80:80 httpd
+Unable to find image 'httpd:latest' locally
+latest: Pulling from library/httpd
+3d77ce4481b1: Pull complete
+73674f4d9403: Pull complete
+d266646f40bd: Pull complete
+ce7b0dda0c9f: Pull complete
+01729050d692: Pull complete
+014246127c67: Pull complete
+7cd2e04cf570: Pull complete
+Digest: sha256:f4610c3a1a7da35072870625733fd0384515f7e912c6223d4a48c6eb749a8617
+Status: Downloaded newer image for httpd:latest
+c46f2e9e4690f5c28ee7ad508559ceee0160ac3e2b1688a61561ce9f7d99d682
+</textarea></div>
+			<div class=""crayon-main"" style="""">
+				<table class=""crayon-table"">
+					<tr class=""crayon-row"">
+				<td class=""crayon-nums "" data-settings=""show"">
+					<div class=""crayon-nums-content"" style=""font-size: 13px !important; line-height: 15px !important;""><div class=""crayon-num"" data-line=""crayon-5b556224509c1501723361-1"">1</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509c1501723361-2"">2</div><div class=""crayon-num"" data-line=""crayon-5b556224509c1501723361-3"">3</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509c1501723361-4"">4</div><div class=""crayon-num"" data-line=""crayon-5b556224509c1501723361-5"">5</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509c1501723361-6"">6</div><div class=""crayon-num"" data-line=""crayon-5b556224509c1501723361-7"">7</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509c1501723361-8"">8</div><div class=""crayon-num"" data-line=""crayon-5b556224509c1501723361-9"">9</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509c1501723361-10"">10</div><div class=""crayon-num"" data-line=""crayon-5b556224509c1501723361-11"">11</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509c1501723361-12"">12</div><div class=""crayon-num"" data-line=""crayon-5b556224509c1501723361-13"">13</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509c1501723361-14"">14</div></div>
+				</td>
+						<td class=""crayon-code""><div class=""crayon-pre"" style=""font-size: 13px !important; line-height: 15px !important; -moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4;""><div class=""crayon-line"" id=""crayon-5b556224509c1501723361-1""><span class=""crayon-v"">root</span><span class=""crayon-sy"">@</span><span class=""crayon-v"">kerneltalks</span><span class=""crayon-h""> </span><span class=""crayon-p""># docker container run -d -p 80:80 httpd</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509c1501723361-2""><span class=""crayon-e"">Unable </span><span class=""crayon-st"">to</span><span class=""crayon-h""> </span><span class=""crayon-e"">find </span><span class=""crayon-i"">image</span><span class=""crayon-h""> </span><span class=""crayon-s"">'httpd:latest'</span><span class=""crayon-h""> </span><span class=""crayon-e"">locally</span></div><div class=""crayon-line"" id=""crayon-5b556224509c1501723361-3""><span class=""crayon-v"">latest</span><span class=""crayon-o"">:</span><span class=""crayon-h""> </span><span class=""crayon-e"">Pulling </span><span class=""crayon-e"">from </span><span class=""crayon-v"">library</span><span class=""crayon-o"">/</span><span class=""crayon-i"">httpd</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509c1501723361-4""><span class=""crayon-cn"">3d77ce4481b1</span><span class=""crayon-o"">:</span><span class=""crayon-h""> </span><span class=""crayon-e"">Pull </span><span class=""crayon-i"">complete</span></div><div class=""crayon-line"" id=""crayon-5b556224509c1501723361-5""><span class=""crayon-cn"">73674f4d9403</span><span class=""crayon-o"">:</span><span class=""crayon-h""> </span><span class=""crayon-e"">Pull </span><span class=""crayon-e"">complete</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509c1501723361-6""><span class=""crayon-v"">d266646f40bd</span><span class=""crayon-o"">:</span><span class=""crayon-h""> </span><span class=""crayon-e"">Pull </span><span class=""crayon-e"">complete</span></div><div class=""crayon-line"" id=""crayon-5b556224509c1501723361-7""><span class=""crayon-v"">ce7b0dda0c9f</span><span class=""crayon-o"">:</span><span class=""crayon-h""> </span><span class=""crayon-e"">Pull </span><span class=""crayon-i"">complete</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509c1501723361-8""><span class=""crayon-cn"">01729050d692</span><span class=""crayon-o"">:</span><span class=""crayon-h""> </span><span class=""crayon-e"">Pull </span><span class=""crayon-i"">complete</span></div><div class=""crayon-line"" id=""crayon-5b556224509c1501723361-9""><span class=""crayon-cn"">014246127c67</span><span class=""crayon-o"">:</span><span class=""crayon-h""> </span><span class=""crayon-e"">Pull </span><span class=""crayon-i"">complete</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509c1501723361-10""><span class=""crayon-cn"">7cd2e04cf570</span><span class=""crayon-o"">:</span><span class=""crayon-h""> </span><span class=""crayon-e"">Pull </span><span class=""crayon-e"">complete</span></div><div class=""crayon-line"" id=""crayon-5b556224509c1501723361-11""><span class=""crayon-v"">Digest</span><span class=""crayon-o"">:</span><span class=""crayon-h""> </span><span class=""crayon-v"">sha256</span><span class=""crayon-o"">:</span><span class=""crayon-e"">f4610c3a1a7da35072870625733fd0384515f7e912c6223d4a48c6eb749a8617</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509c1501723361-12""><span class=""crayon-v"">Status</span><span class=""crayon-o"">:</span><span class=""crayon-h""> </span><span class=""crayon-e"">Downloaded </span><span class=""crayon-e"">newer </span><span class=""crayon-e"">image </span><span class=""crayon-st"">for</span><span class=""crayon-h""> </span><span class=""crayon-v"">httpd</span><span class=""crayon-o"">:</span><span class=""crayon-e"">latest</span></div><div class=""crayon-line"" id=""crayon-5b556224509c1501723361-13""><span class=""crayon-i"">c46f2e9e4690f5c28ee7ad508559ceee0160ac3e2b1688a61561ce9f7d99d682</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509c1501723361-14""> </div></div></td>
+					</tr>
+				</table>
+			</div>
+		</div>
+<!-- [Format Time: 0.0020 seconds] -->
+<p>Docker 的 <code>run</code> 命令将镜像名作为强制参数，另外还有很多可选参数。常用的参数有：</p>
+<ul>
+<li><code>-d</code>：从当前 shell 脱离容器</li>
+<li><code>-p X:Y</code>：绑定容器的端口 Y 到宿主机的端口 X</li>
+<li><code>--name</code>：命名你的容器。如果未指定，它将被赋予随机生成的名字</li>
+<li><code>-e</code>：当启动容器时传递环境编辑及其值</li>
+</ul>
+<p>通过以上输出你可以看到，我们将 <code>httpd</code> 作为镜像名来运行容器。接着，本地镜像没有找到，Docker 引擎从 Docker Hub 拉取了它。注意，它下载了镜像 <code>httpd:latest</code>， 其中 <code>:</code> 后面跟着版本号。如果你需要运行特定版本的容器，你可以在镜像名后面注明版本名。如果不提供版本名，Docker 引擎会自动拉取最新的版本。</p>
+<p>输出的最后一行显示了你新运行的 httpd 容器的唯一 ID。</p>
+<h3 id=""toc_2"">如何列出所有运行中的 Docker 容器？</h3>
+<p>现在，你的容器已经运行起来了，你可能想要确认这一点，或者你想要列出你的机器上运行的所有容器。你可以使用 <code>docker container ls</code> 命令。在旧的 Docker 版本中，对应的命令为 <code>docker ps</code>。</p><!-- Crayon Syntax Highlighter v2.7.1.1 -->
+
+		<div id=""crayon-5b556224509cd543872649"" class=""crayon-syntax crayon-theme-github crayon-font-monaco crayon-os-pc print-yes notranslate"" data-settings="" minimize scroll-always"" style="" margin-top: 12px; margin-bottom: 12px; font-size: 13px !important; line-height: 15px !important;"">
+		
+			<div class=""crayon-toolbar"" data-settings="" show"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><span class=""crayon-title""></span>
+			<div class=""crayon-tools"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><div class=""crayon-button crayon-nums-button"" title=""切换是否显示行编号""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-plain-button"" title=""纯文本显示代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-wrap-button"" title=""切换自动换行""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-expand-button"" title=""点击展开代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-copy-button"" title=""复制代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-popup-button"" title=""在新窗口中显示代码""><div class=""crayon-button-icon""></div></div></div></div>
+			<div class=""crayon-info"" style=""min-height: 18.2px !important; line-height: 18.2px !important;""></div>
+			<div class=""crayon-plain-wrap""><textarea wrap=""soft"" class=""crayon-plain print-no"" data-settings=""dblclick"" readonly style=""-moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4; font-size: 13px !important; line-height: 15px !important;"">
+root@kerneltalks # docker container ls
+CONTAINER ID        IMAGE               COMMAND              CREATED             STATUS              PORTS                NAMES
+c46f2e9e4690        httpd               ""httpd-foreground""   11 minutes ago      Up 11 minutes       0.0.0.0:80-&gt;80/tcp   cranky_cori
+</textarea></div>
+			<div class=""crayon-main"" style="""">
+				<table class=""crayon-table"">
+					<tr class=""crayon-row"">
+				<td class=""crayon-nums "" data-settings=""show"">
+					<div class=""crayon-nums-content"" style=""font-size: 13px !important; line-height: 15px !important;""><div class=""crayon-num"" data-line=""crayon-5b556224509cd543872649-1"">1</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509cd543872649-2"">2</div><div class=""crayon-num"" data-line=""crayon-5b556224509cd543872649-3"">3</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509cd543872649-4"">4</div></div>
+				</td>
+						<td class=""crayon-code""><div class=""crayon-pre"" style=""font-size: 13px !important; line-height: 15px !important; -moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4;""><div class=""crayon-line"" id=""crayon-5b556224509cd543872649-1""><span class=""crayon-v"">root</span><span class=""crayon-sy"">@</span><span class=""crayon-v"">kerneltalks</span><span class=""crayon-h""> </span><span class=""crayon-p""># docker container ls</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509cd543872649-2""><span class=""crayon-e"">CONTAINER </span><span class=""crayon-e"">ID        </span><span class=""crayon-e"">IMAGE               </span><span class=""crayon-e"">COMMAND              </span><span class=""crayon-e"">CREATED             </span><span class=""crayon-e"">STATUS              </span><span class=""crayon-e"">PORTS                </span><span class=""crayon-e"">NAMES</span></div><div class=""crayon-line"" id=""crayon-5b556224509cd543872649-3""><span class=""crayon-e"">c46f2e9e4690        </span><span class=""crayon-i"">httpd</span><span class=""crayon-h"">               </span><span class=""crayon-s"">""httpd-foreground""</span><span class=""crayon-h"">   </span><span class=""crayon-cn"">11</span><span class=""crayon-h""> </span><span class=""crayon-e"">minutes </span><span class=""crayon-e"">ago      </span><span class=""crayon-i"">Up</span><span class=""crayon-h""> </span><span class=""crayon-cn"">11</span><span class=""crayon-h""> </span><span class=""crayon-i"">minutes</span><span class=""crayon-h"">       </span><span class=""crayon-cn"">0.0.0.0</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">80</span><span class=""crayon-o"">-&gt;</span><span class=""crayon-cn"">80</span><span class=""crayon-o"">/</span><span class=""crayon-e"">tcp   </span><span class=""crayon-v"">cranky</span><span class=""crayon-sy"">_</span>cori</div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509cd543872649-4""> </div></div></td>
+					</tr>
+				</table>
+			</div>
+		</div>
+<!-- [Format Time: 0.0012 seconds] -->
+<p>列出的结果是按列显示的。每一列的值分别为：</p>
+<ol>
+<li>Container ID ：一开始的几个字符对应你的容器的唯一 ID</li>
+<li>Image ：你运行容器的镜像名</li>
+<li>Command ：容器启动后运行的命令</li>
+<li>Created ：创建时间</li>
+<li>Status ：容器当前状态</li>
+<li>Ports ：与宿主端口相连接的端口信息</li>
+<li>Names ：容器名（如果你没有命名你的容器，那么会随机创建）</li>
+</ol>
+<h3 id=""toc_3"">如何查看 Docker 容器的历史纪录？</h3>
+<p>在第一步我们使用了 <code>-d</code> 参数来将容器，在它一开始运行的时候，就从当前的 shell 中脱离出来。在这种情况下，我们不知道容器里面发生了什么。所以为了查看容器的历史纪录，Docker 提供了 <code>logs</code> 命令。它采用容器名称或 ID 作为参数。</p><!-- Crayon Syntax Highlighter v2.7.1.1 -->
+
+		<div id=""crayon-5b556224509d3242478083"" class=""crayon-syntax crayon-theme-github crayon-font-monaco crayon-os-pc print-yes notranslate"" data-settings="" minimize scroll-always"" style="" margin-top: 12px; margin-bottom: 12px; font-size: 13px !important; line-height: 15px !important;"">
+		
+			<div class=""crayon-toolbar"" data-settings="" show"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><span class=""crayon-title""></span>
+			<div class=""crayon-tools"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><div class=""crayon-button crayon-nums-button"" title=""切换是否显示行编号""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-plain-button"" title=""纯文本显示代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-wrap-button"" title=""切换自动换行""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-expand-button"" title=""点击展开代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-copy-button"" title=""复制代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-popup-button"" title=""在新窗口中显示代码""><div class=""crayon-button-icon""></div></div></div></div>
+			<div class=""crayon-info"" style=""min-height: 18.2px !important; line-height: 18.2px !important;""></div>
+			<div class=""crayon-plain-wrap""><textarea wrap=""soft"" class=""crayon-plain print-no"" data-settings=""dblclick"" readonly style=""-moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4; font-size: 13px !important; line-height: 15px !important;"">
+root@kerneltalks # docker container logs cranky_cori
+AH00558: httpd: Could not reliably determine the server's fully qualified domain name, using 172.17.0.2. Set the 'ServerName' directive globally to suppress this message
+AH00558: httpd: Could not reliably determine the server's fully qualified domain name, using 172.17.0.2. Set the 'ServerName' directive globally to suppress this message
+[Thu May 31 18:35:07.301158 2018] [mpm_event:notice] [pid 1:tid 139734285989760] AH00489: Apache/2.4.33 (Unix) configured -- resuming normal operations
+[Thu May 31 18:35:07.305153 2018] [core:notice] [pid 1:tid 139734285989760] AH00094: Command line: 'httpd -D FOREGROUND'
+</textarea></div>
+			<div class=""crayon-main"" style="""">
+				<table class=""crayon-table"">
+					<tr class=""crayon-row"">
+				<td class=""crayon-nums "" data-settings=""show"">
+					<div class=""crayon-nums-content"" style=""font-size: 13px !important; line-height: 15px !important;""><div class=""crayon-num"" data-line=""crayon-5b556224509d3242478083-1"">1</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509d3242478083-2"">2</div><div class=""crayon-num"" data-line=""crayon-5b556224509d3242478083-3"">3</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509d3242478083-4"">4</div><div class=""crayon-num"" data-line=""crayon-5b556224509d3242478083-5"">5</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509d3242478083-6"">6</div></div>
+				</td>
+						<td class=""crayon-code""><div class=""crayon-pre"" style=""font-size: 13px !important; line-height: 15px !important; -moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4;""><div class=""crayon-line"" id=""crayon-5b556224509d3242478083-1""><span class=""crayon-v"">root</span><span class=""crayon-sy"">@</span><span class=""crayon-v"">kerneltalks</span><span class=""crayon-h""> </span><span class=""crayon-p""># docker container logs cranky_cori</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509d3242478083-2""><span class=""crayon-v"">AH00558</span><span class=""crayon-o"">:</span><span class=""crayon-h""> </span><span class=""crayon-v"">httpd</span><span class=""crayon-o"">:</span><span class=""crayon-h""> </span><span class=""crayon-e"">Could </span><span class=""crayon-st"">not</span><span class=""crayon-h""> </span><span class=""crayon-e"">reliably </span><span class=""crayon-e"">determine </span><span class=""crayon-e"">the </span><span class=""crayon-i"">server</span><span class=""crayon-s"">'s fully qualified domain name, using 172.17.0.2. Set the '</span><span class=""crayon-i"">ServerName</span><span class=""crayon-s"">' directive globally to suppress this message</span></div><div class=""crayon-line"" id=""crayon-5b556224509d3242478083-3""><span class=""crayon-s"">AH00558: httpd: Could not reliably determine the server'</span><span class=""crayon-i"">s</span><span class=""crayon-h""> </span><span class=""crayon-e"">fully </span><span class=""crayon-e"">qualified </span><span class=""crayon-e"">domain </span><span class=""crayon-v"">name</span><span class=""crayon-sy"">,</span><span class=""crayon-h""> </span><span class=""crayon-i"">using</span><span class=""crayon-h""> </span><span class=""crayon-cn"">172.17.0.2.</span><span class=""crayon-h""> </span><span class=""crayon-e"">Set </span><span class=""crayon-i"">the</span><span class=""crayon-h""> </span><span class=""crayon-s"">'ServerName'</span><span class=""crayon-h""> </span><span class=""crayon-e"">directive </span><span class=""crayon-e"">globally </span><span class=""crayon-st"">to</span><span class=""crayon-h""> </span><span class=""crayon-e"">suppress </span><span class=""crayon-r"">this</span><span class=""crayon-h""> </span><span class=""crayon-i"">message</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509d3242478083-4""><span class=""crayon-sy"">[</span><span class=""crayon-e"">Thu </span><span class=""crayon-i"">May</span><span class=""crayon-h""> </span><span class=""crayon-cn"">31</span><span class=""crayon-h""> </span><span class=""crayon-cn"">18</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">35</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">07.301158</span><span class=""crayon-h""> </span><span class=""crayon-cn"">2018</span><span class=""crayon-sy"">]</span><span class=""crayon-h""> </span><span class=""crayon-sy"">[</span><span class=""crayon-v"">mpm_event</span><span class=""crayon-o"">:</span><span class=""crayon-v"">notice</span><span class=""crayon-sy"">]</span><span class=""crayon-h""> </span><span class=""crayon-sy"">[</span><span class=""crayon-i"">pid</span><span class=""crayon-h""> </span><span class=""crayon-cn"">1</span><span class=""crayon-o"">:</span><span class=""crayon-i"">tid</span><span class=""crayon-h""> </span><span class=""crayon-cn"">139734285989760</span><span class=""crayon-sy"">]</span><span class=""crayon-h""> </span><span class=""crayon-v"">AH00489</span><span class=""crayon-o"">:</span><span class=""crayon-h""> </span><span class=""crayon-v"">Apache</span><span class=""crayon-o"">/</span><span class=""crayon-cn"">2.4.33</span><span class=""crayon-h""> </span><span class=""crayon-sy"">(</span><span class=""crayon-v"">Unix</span><span class=""crayon-sy"">)</span><span class=""crayon-h""> </span><span class=""crayon-v"">configured</span><span class=""crayon-h""> </span><span class=""crayon-o"">--</span><span class=""crayon-h""> </span><span class=""crayon-e"">resuming </span><span class=""crayon-e"">normal </span><span class=""crayon-i"">operations</span></div><div class=""crayon-line"" id=""crayon-5b556224509d3242478083-5""><span class=""crayon-sy"">[</span><span class=""crayon-e"">Thu </span><span class=""crayon-i"">May</span><span class=""crayon-h""> </span><span class=""crayon-cn"">31</span><span class=""crayon-h""> </span><span class=""crayon-cn"">18</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">35</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">07.305153</span><span class=""crayon-h""> </span><span class=""crayon-cn"">2018</span><span class=""crayon-sy"">]</span><span class=""crayon-h""> </span><span class=""crayon-sy"">[</span><span class=""crayon-v"">core</span><span class=""crayon-o"">:</span><span class=""crayon-v"">notice</span><span class=""crayon-sy"">]</span><span class=""crayon-h""> </span><span class=""crayon-sy"">[</span><span class=""crayon-i"">pid</span><span class=""crayon-h""> </span><span class=""crayon-cn"">1</span><span class=""crayon-o"">:</span><span class=""crayon-i"">tid</span><span class=""crayon-h""> </span><span class=""crayon-cn"">139734285989760</span><span class=""crayon-sy"">]</span><span class=""crayon-h""> </span><span class=""crayon-v"">AH00094</span><span class=""crayon-o"">:</span><span class=""crayon-h""> </span><span class=""crayon-e"">Command </span><span class=""crayon-v"">line</span><span class=""crayon-o"">:</span><span class=""crayon-h""> </span><span class=""crayon-s"">'httpd -D FOREGROUND'</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509d3242478083-6""> </div></div></td>
+					</tr>
+				</table>
+			</div>
+		</div>
+<!-- [Format Time: 0.0029 seconds] -->
+<p>这里我使用了容器名称作为参数。你可以看到在我们的 httpd 容器中与 Apache 相关的历史纪录。</p>
+<h3 id=""toc_4"">如何确定 Docker 容器的进程？</h3>
+<p>容器是一个使用宿主资源来运行的进程。这样，你可以在宿主系统的进程表中定位容器的进程。让我们在宿主系统上确定容器进程。</p>
+<p>Docker 使用著名的 <code>top</code> 命令作为子命令的名称，来查看容器产生的进程。它采用容器的名称或 ID 作为参数。在旧版本的 Docker 中，只可运行 <code>docker top</code> 命令。在新版本中，<code>docker top</code> 和 <code>docker container top</code> 命令都可以生效。</p><!-- Crayon Syntax Highlighter v2.7.1.1 -->
+
+		<div id=""crayon-5b556224509d7582502867"" class=""crayon-syntax crayon-theme-github crayon-font-monaco crayon-os-pc print-yes notranslate"" data-settings="" minimize scroll-always"" style="" margin-top: 12px; margin-bottom: 12px; font-size: 13px !important; line-height: 15px !important;"">
+		
+			<div class=""crayon-toolbar"" data-settings="" show"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><span class=""crayon-title""></span>
+			<div class=""crayon-tools"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><div class=""crayon-button crayon-nums-button"" title=""切换是否显示行编号""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-plain-button"" title=""纯文本显示代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-wrap-button"" title=""切换自动换行""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-expand-button"" title=""点击展开代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-copy-button"" title=""复制代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-popup-button"" title=""在新窗口中显示代码""><div class=""crayon-button-icon""></div></div></div></div>
+			<div class=""crayon-info"" style=""min-height: 18.2px !important; line-height: 18.2px !important;""></div>
+			<div class=""crayon-plain-wrap""><textarea wrap=""soft"" class=""crayon-plain print-no"" data-settings=""dblclick"" readonly style=""-moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4; font-size: 13px !important; line-height: 15px !important;"">
+root@kerneltalks # docker container top  cranky_cori
+UID                 PID                 PPID                C                   STIME               TTY                 TIME                CMD
+root                15702               15690               0                   18:35               ?                   00:00:00            httpd -DFOREGROUND
+bin                 15729               15702               0                   18:35               ?                   00:00:00            httpd -DFOREGROUND
+bin                 15730               15702               0                   18:35               ?                   00:00:00            httpd -DFOREGROUND
+bin                 15731               15702               0                   18:35               ?                   00:00:00            httpd -DFOREGROUND
+
+root@kerneltalks # ps -ef |grep -i 15702
+root     15702 15690  0 18:35 ?        00:00:00 httpd -DFOREGROUND
+bin      15729 15702  0 18:35 ?        00:00:00 httpd -DFOREGROUND
+bin      15730 15702  0 18:35 ?        00:00:00 httpd -DFOREGROUND
+bin      15731 15702  0 18:35 ?        00:00:00 httpd -DFOREGROUND
+root     15993 15957  0 18:59 pts/0    00:00:00 grep --color=auto -i 15702
+</textarea></div>
+			<div class=""crayon-main"" style="""">
+				<table class=""crayon-table"">
+					<tr class=""crayon-row"">
+				<td class=""crayon-nums "" data-settings=""show"">
+					<div class=""crayon-nums-content"" style=""font-size: 13px !important; line-height: 15px !important;""><div class=""crayon-num"" data-line=""crayon-5b556224509d7582502867-1"">1</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509d7582502867-2"">2</div><div class=""crayon-num"" data-line=""crayon-5b556224509d7582502867-3"">3</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509d7582502867-4"">4</div><div class=""crayon-num"" data-line=""crayon-5b556224509d7582502867-5"">5</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509d7582502867-6"">6</div><div class=""crayon-num"" data-line=""crayon-5b556224509d7582502867-7"">7</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509d7582502867-8"">8</div><div class=""crayon-num"" data-line=""crayon-5b556224509d7582502867-9"">9</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509d7582502867-10"">10</div><div class=""crayon-num"" data-line=""crayon-5b556224509d7582502867-11"">11</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509d7582502867-12"">12</div><div class=""crayon-num"" data-line=""crayon-5b556224509d7582502867-13"">13</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509d7582502867-14"">14</div></div>
+				</td>
+						<td class=""crayon-code""><div class=""crayon-pre"" style=""font-size: 13px !important; line-height: 15px !important; -moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4;""><div class=""crayon-line"" id=""crayon-5b556224509d7582502867-1""><span class=""crayon-v"">root</span><span class=""crayon-sy"">@</span><span class=""crayon-v"">kerneltalks</span><span class=""crayon-h""> </span><span class=""crayon-p""># docker container top  cranky_cori</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509d7582502867-2""><span class=""crayon-e"">UID                 </span><span class=""crayon-e"">PID                 </span><span class=""crayon-i"">PPID</span><span class=""crayon-h"">                </span><span class=""crayon-i"">C</span><span class=""crayon-h"">                   </span><span class=""crayon-e"">STIME               </span><span class=""crayon-e"">TTY                 </span><span class=""crayon-e"">TIME                </span><span class=""crayon-e"">CMD</span></div><div class=""crayon-line"" id=""crayon-5b556224509d7582502867-3""><span class=""crayon-i"">root</span><span class=""crayon-h"">                </span><span class=""crayon-cn"">15702</span><span class=""crayon-h"">               </span><span class=""crayon-cn"">15690</span><span class=""crayon-h"">               </span><span class=""crayon-cn"">0</span><span class=""crayon-h"">                   </span><span class=""crayon-cn"">18</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">35</span><span class=""crayon-h"">               </span><span class=""crayon-sy"">?</span><span class=""crayon-h"">                   </span><span class=""crayon-cn"">00</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">00</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">00</span><span class=""crayon-h"">            </span><span class=""crayon-v"">httpd</span><span class=""crayon-h""> </span><span class=""crayon-o"">-</span><span class=""crayon-e"">DFOREGROUND</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509d7582502867-4""><span class=""crayon-i"">bin</span><span class=""crayon-h"">                 </span><span class=""crayon-cn"">15729</span><span class=""crayon-h"">               </span><span class=""crayon-cn"">15702</span><span class=""crayon-h"">               </span><span class=""crayon-cn"">0</span><span class=""crayon-h"">                   </span><span class=""crayon-cn"">18</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">35</span><span class=""crayon-h"">               </span><span class=""crayon-sy"">?</span><span class=""crayon-h"">                   </span><span class=""crayon-cn"">00</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">00</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">00</span><span class=""crayon-h"">            </span><span class=""crayon-v"">httpd</span><span class=""crayon-h""> </span><span class=""crayon-o"">-</span><span class=""crayon-e"">DFOREGROUND</span></div><div class=""crayon-line"" id=""crayon-5b556224509d7582502867-5""><span class=""crayon-i"">bin</span><span class=""crayon-h"">                 </span><span class=""crayon-cn"">15730</span><span class=""crayon-h"">               </span><span class=""crayon-cn"">15702</span><span class=""crayon-h"">               </span><span class=""crayon-cn"">0</span><span class=""crayon-h"">                   </span><span class=""crayon-cn"">18</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">35</span><span class=""crayon-h"">               </span><span class=""crayon-sy"">?</span><span class=""crayon-h"">                   </span><span class=""crayon-cn"">00</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">00</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">00</span><span class=""crayon-h"">            </span><span class=""crayon-v"">httpd</span><span class=""crayon-h""> </span><span class=""crayon-o"">-</span><span class=""crayon-e"">DFOREGROUND</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509d7582502867-6""><span class=""crayon-i"">bin</span><span class=""crayon-h"">                 </span><span class=""crayon-cn"">15731</span><span class=""crayon-h"">               </span><span class=""crayon-cn"">15702</span><span class=""crayon-h"">               </span><span class=""crayon-cn"">0</span><span class=""crayon-h"">                   </span><span class=""crayon-cn"">18</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">35</span><span class=""crayon-h"">               </span><span class=""crayon-sy"">?</span><span class=""crayon-h"">                   </span><span class=""crayon-cn"">00</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">00</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">00</span><span class=""crayon-h"">            </span><span class=""crayon-v"">httpd</span><span class=""crayon-h""> </span><span class=""crayon-o"">-</span><span class=""crayon-e"">DFOREGROUND</span></div><div class=""crayon-line"" id=""crayon-5b556224509d7582502867-7""> </div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509d7582502867-8""><span class=""crayon-v"">root</span><span class=""crayon-sy"">@</span><span class=""crayon-v"">kerneltalks</span><span class=""crayon-h""> </span><span class=""crayon-p""># ps -ef |grep -i 15702</span></div><div class=""crayon-line"" id=""crayon-5b556224509d7582502867-9""><span class=""crayon-i"">root</span><span class=""crayon-h"">     </span><span class=""crayon-cn"">15702</span><span class=""crayon-h""> </span><span class=""crayon-cn"">15690</span><span class=""crayon-h"">  </span><span class=""crayon-cn"">0</span><span class=""crayon-h""> </span><span class=""crayon-cn"">18</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">35</span><span class=""crayon-h""> </span><span class=""crayon-sy"">?</span><span class=""crayon-h"">        </span><span class=""crayon-cn"">00</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">00</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">00</span><span class=""crayon-h""> </span><span class=""crayon-v"">httpd</span><span class=""crayon-h""> </span><span class=""crayon-o"">-</span><span class=""crayon-e"">DFOREGROUND</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509d7582502867-10""><span class=""crayon-i"">bin</span><span class=""crayon-h"">      </span><span class=""crayon-cn"">15729</span><span class=""crayon-h""> </span><span class=""crayon-cn"">15702</span><span class=""crayon-h"">  </span><span class=""crayon-cn"">0</span><span class=""crayon-h""> </span><span class=""crayon-cn"">18</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">35</span><span class=""crayon-h""> </span><span class=""crayon-sy"">?</span><span class=""crayon-h"">        </span><span class=""crayon-cn"">00</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">00</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">00</span><span class=""crayon-h""> </span><span class=""crayon-v"">httpd</span><span class=""crayon-h""> </span><span class=""crayon-o"">-</span><span class=""crayon-e"">DFOREGROUND</span></div><div class=""crayon-line"" id=""crayon-5b556224509d7582502867-11""><span class=""crayon-i"">bin</span><span class=""crayon-h"">      </span><span class=""crayon-cn"">15730</span><span class=""crayon-h""> </span><span class=""crayon-cn"">15702</span><span class=""crayon-h"">  </span><span class=""crayon-cn"">0</span><span class=""crayon-h""> </span><span class=""crayon-cn"">18</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">35</span><span class=""crayon-h""> </span><span class=""crayon-sy"">?</span><span class=""crayon-h"">        </span><span class=""crayon-cn"">00</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">00</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">00</span><span class=""crayon-h""> </span><span class=""crayon-v"">httpd</span><span class=""crayon-h""> </span><span class=""crayon-o"">-</span><span class=""crayon-e"">DFOREGROUND</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509d7582502867-12""><span class=""crayon-i"">bin</span><span class=""crayon-h"">      </span><span class=""crayon-cn"">15731</span><span class=""crayon-h""> </span><span class=""crayon-cn"">15702</span><span class=""crayon-h"">  </span><span class=""crayon-cn"">0</span><span class=""crayon-h""> </span><span class=""crayon-cn"">18</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">35</span><span class=""crayon-h""> </span><span class=""crayon-sy"">?</span><span class=""crayon-h"">        </span><span class=""crayon-cn"">00</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">00</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">00</span><span class=""crayon-h""> </span><span class=""crayon-v"">httpd</span><span class=""crayon-h""> </span><span class=""crayon-o"">-</span><span class=""crayon-e"">DFOREGROUND</span></div><div class=""crayon-line"" id=""crayon-5b556224509d7582502867-13""><span class=""crayon-i"">root</span><span class=""crayon-h"">     </span><span class=""crayon-cn"">15993</span><span class=""crayon-h""> </span><span class=""crayon-cn"">15957</span><span class=""crayon-h"">  </span><span class=""crayon-cn"">0</span><span class=""crayon-h""> </span><span class=""crayon-cn"">18</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">59</span><span class=""crayon-h""> </span><span class=""crayon-v"">pts</span><span class=""crayon-o"">/</span><span class=""crayon-cn"">0</span><span class=""crayon-h"">    </span><span class=""crayon-cn"">00</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">00</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">00</span><span class=""crayon-h""> </span><span class=""crayon-v"">grep</span><span class=""crayon-h""> </span><span class=""crayon-o"">--</span><span class=""crayon-v"">color</span><span class=""crayon-o"">=</span><span class=""crayon-v"">auto</span><span class=""crayon-h""> </span><span class=""crayon-o"">-</span><span class=""crayon-i"">i</span><span class=""crayon-h""> </span><span class=""crayon-cn"">15702</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509d7582502867-14""> </div></div></td>
+					</tr>
+				</table>
+			</div>
+		</div>
+<!-- [Format Time: 0.0051 seconds] -->
+<p>在第一个输出中，列出了容器产生的进程的列表。它包含了所有细节，包括用户号uid、进程号pid，父进程号ppid、开始时间、命令，等等。这里所有的进程号你都可以在宿主的进程表里搜索到。这就是我们在第二个命令里做得。这证明了容器确实是宿主系统中的进程。</p>
+<h3 id=""toc_5"">如何停止 Docker 容器？</h3>
+<p>只需要 <code>stop</code> 命令！同样，它采用容器名称或 ID 作为参数。</p><!-- Crayon Syntax Highlighter v2.7.1.1 -->
+
+		<div id=""crayon-5b556224509de694892191"" class=""crayon-syntax crayon-theme-github crayon-font-monaco crayon-os-pc print-yes notranslate"" data-settings="" minimize scroll-always"" style="" margin-top: 12px; margin-bottom: 12px; font-size: 13px !important; line-height: 15px !important;"">
+		
+			<div class=""crayon-toolbar"" data-settings="" show"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><span class=""crayon-title""></span>
+			<div class=""crayon-tools"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><div class=""crayon-button crayon-nums-button"" title=""切换是否显示行编号""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-plain-button"" title=""纯文本显示代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-wrap-button"" title=""切换自动换行""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-expand-button"" title=""点击展开代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-copy-button"" title=""复制代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-popup-button"" title=""在新窗口中显示代码""><div class=""crayon-button-icon""></div></div></div></div>
+			<div class=""crayon-info"" style=""min-height: 18.2px !important; line-height: 18.2px !important;""></div>
+			<div class=""crayon-plain-wrap""><textarea wrap=""soft"" class=""crayon-plain print-no"" data-settings=""dblclick"" readonly style=""-moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4; font-size: 13px !important; line-height: 15px !important;"">
+root@kerneltalks # docker container stop cranky_cori
+cranky_cori
+</textarea></div>
+			<div class=""crayon-main"" style="""">
+				<table class=""crayon-table"">
+					<tr class=""crayon-row"">
+				<td class=""crayon-nums "" data-settings=""show"">
+					<div class=""crayon-nums-content"" style=""font-size: 13px !important; line-height: 15px !important;""><div class=""crayon-num"" data-line=""crayon-5b556224509de694892191-1"">1</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509de694892191-2"">2</div><div class=""crayon-num"" data-line=""crayon-5b556224509de694892191-3"">3</div></div>
+				</td>
+						<td class=""crayon-code""><div class=""crayon-pre"" style=""font-size: 13px !important; line-height: 15px !important; -moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4;""><div class=""crayon-line"" id=""crayon-5b556224509de694892191-1""><span class=""crayon-v"">root</span><span class=""crayon-sy"">@</span><span class=""crayon-v"">kerneltalks</span><span class=""crayon-h""> </span><span class=""crayon-p""># docker container stop cranky_cori</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509de694892191-2""><span class=""crayon-v"">cranky</span><span class=""crayon-sy"">_</span>cori</div><div class=""crayon-line"" id=""crayon-5b556224509de694892191-3""> </div></div></td>
+					</tr>
+				</table>
+			</div>
+		</div>
+<!-- [Format Time: 0.0005 seconds] -->
+<p></p>
+<h3 id=""toc_6"">如何列出停止的或不活动的 Docker 容器？</h3>
+<p>现在我们停止了我们的容器，这时如果我们使用 <code>ls</code> 命令，它将不会出现在列表中。</p><!-- Crayon Syntax Highlighter v2.7.1.1 -->
+
+		<div id=""crayon-5b556224509e2573966404"" class=""crayon-syntax crayon-theme-github crayon-font-monaco crayon-os-pc print-yes notranslate"" data-settings="" minimize scroll-always"" style="" margin-top: 12px; margin-bottom: 12px; font-size: 13px !important; line-height: 15px !important;"">
+		
+			<div class=""crayon-toolbar"" data-settings="" show"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><span class=""crayon-title""></span>
+			<div class=""crayon-tools"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><div class=""crayon-button crayon-nums-button"" title=""切换是否显示行编号""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-plain-button"" title=""纯文本显示代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-wrap-button"" title=""切换自动换行""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-expand-button"" title=""点击展开代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-copy-button"" title=""复制代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-popup-button"" title=""在新窗口中显示代码""><div class=""crayon-button-icon""></div></div></div></div>
+			<div class=""crayon-info"" style=""min-height: 18.2px !important; line-height: 18.2px !important;""></div>
+			<div class=""crayon-plain-wrap""><textarea wrap=""soft"" class=""crayon-plain print-no"" data-settings=""dblclick"" readonly style=""-moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4; font-size: 13px !important; line-height: 15px !important;"">
+root@kerneltalks # docker container ls
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
+</textarea></div>
+			<div class=""crayon-main"" style="""">
+				<table class=""crayon-table"">
+					<tr class=""crayon-row"">
+				<td class=""crayon-nums "" data-settings=""show"">
+					<div class=""crayon-nums-content"" style=""font-size: 13px !important; line-height: 15px !important;""><div class=""crayon-num"" data-line=""crayon-5b556224509e2573966404-1"">1</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509e2573966404-2"">2</div><div class=""crayon-num"" data-line=""crayon-5b556224509e2573966404-3"">3</div></div>
+				</td>
+						<td class=""crayon-code""><div class=""crayon-pre"" style=""font-size: 13px !important; line-height: 15px !important; -moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4;""><div class=""crayon-line"" id=""crayon-5b556224509e2573966404-1""><span class=""crayon-v"">root</span><span class=""crayon-sy"">@</span><span class=""crayon-v"">kerneltalks</span><span class=""crayon-h""> </span><span class=""crayon-p""># docker container ls</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509e2573966404-2""><span class=""crayon-e"">CONTAINER </span><span class=""crayon-e"">ID        </span><span class=""crayon-e"">IMAGE               </span><span class=""crayon-e"">COMMAND             </span><span class=""crayon-e"">CREATED             </span><span class=""crayon-e"">STATUS              </span><span class=""crayon-e"">PORTS               </span><span class=""crayon-i"">NAMES</span></div><div class=""crayon-line"" id=""crayon-5b556224509e2573966404-3""> </div></div></td>
+					</tr>
+				</table>
+			</div>
+		</div>
+<!-- [Format Time: 0.0006 seconds] -->
+<p>所以，在这种情况下，如果想要查看停止的或不活动的容器，你需要在 <code>ls</code> 命令里同时使用 <code>-a</code> 参数。</p><!-- Crayon Syntax Highlighter v2.7.1.1 -->
+
+		<div id=""crayon-5b556224509e5092173782"" class=""crayon-syntax crayon-theme-github crayon-font-monaco crayon-os-pc print-yes notranslate"" data-settings="" minimize scroll-always"" style="" margin-top: 12px; margin-bottom: 12px; font-size: 13px !important; line-height: 15px !important;"">
+		
+			<div class=""crayon-toolbar"" data-settings="" show"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><span class=""crayon-title""></span>
+			<div class=""crayon-tools"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><div class=""crayon-button crayon-nums-button"" title=""切换是否显示行编号""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-plain-button"" title=""纯文本显示代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-wrap-button"" title=""切换自动换行""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-expand-button"" title=""点击展开代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-copy-button"" title=""复制代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-popup-button"" title=""在新窗口中显示代码""><div class=""crayon-button-icon""></div></div></div></div>
+			<div class=""crayon-info"" style=""min-height: 18.2px !important; line-height: 18.2px !important;""></div>
+			<div class=""crayon-plain-wrap""><textarea wrap=""soft"" class=""crayon-plain print-no"" data-settings=""dblclick"" readonly style=""-moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4; font-size: 13px !important; line-height: 15px !important;"">
+root@kerneltalks # docker container ls -a
+CONTAINER ID        IMAGE               COMMAND              CREATED             STATUS                     PORTS               NAMES
+c46f2e9e4690        httpd               ""httpd-foreground""   33 minutes ago      Exited (0) 2 minutes ago                       cranky_cori
+</textarea></div>
+			<div class=""crayon-main"" style="""">
+				<table class=""crayon-table"">
+					<tr class=""crayon-row"">
+				<td class=""crayon-nums "" data-settings=""show"">
+					<div class=""crayon-nums-content"" style=""font-size: 13px !important; line-height: 15px !important;""><div class=""crayon-num"" data-line=""crayon-5b556224509e5092173782-1"">1</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509e5092173782-2"">2</div><div class=""crayon-num"" data-line=""crayon-5b556224509e5092173782-3"">3</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509e5092173782-4"">4</div></div>
+				</td>
+						<td class=""crayon-code""><div class=""crayon-pre"" style=""font-size: 13px !important; line-height: 15px !important; -moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4;""><div class=""crayon-line"" id=""crayon-5b556224509e5092173782-1""><span class=""crayon-v"">root</span><span class=""crayon-sy"">@</span><span class=""crayon-v"">kerneltalks</span><span class=""crayon-h""> </span><span class=""crayon-p""># docker container ls -a</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509e5092173782-2""><span class=""crayon-e"">CONTAINER </span><span class=""crayon-e"">ID        </span><span class=""crayon-e"">IMAGE               </span><span class=""crayon-e"">COMMAND              </span><span class=""crayon-e"">CREATED             </span><span class=""crayon-e"">STATUS                     </span><span class=""crayon-e"">PORTS               </span><span class=""crayon-e"">NAMES</span></div><div class=""crayon-line"" id=""crayon-5b556224509e5092173782-3""><span class=""crayon-e"">c46f2e9e4690        </span><span class=""crayon-i"">httpd</span><span class=""crayon-h"">               </span><span class=""crayon-s"">""httpd-foreground""</span><span class=""crayon-h"">   </span><span class=""crayon-cn"">33</span><span class=""crayon-h""> </span><span class=""crayon-e"">minutes </span><span class=""crayon-e"">ago      </span><span class=""crayon-e"">Exited</span><span class=""crayon-h""> </span><span class=""crayon-sy"">(</span><span class=""crayon-cn"">0</span><span class=""crayon-sy"">)</span><span class=""crayon-h""> </span><span class=""crayon-cn"">2</span><span class=""crayon-h""> </span><span class=""crayon-e"">minutes </span><span class=""crayon-e"">ago                       </span><span class=""crayon-v"">cranky</span><span class=""crayon-sy"">_</span>cori</div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509e5092173782-4""> </div></div></td>
+					</tr>
+				</table>
+			</div>
+		</div>
+<!-- [Format Time: 0.0010 seconds] -->
+<p>有了 <code>-a</code> 参数，现在我们可以查看已停止的容器。注意这些容器的状态被标注为 已退出exited。既然容器只是一个进程，那么用“退出”比“停止”更合适！</p>
+<h3 id=""toc_7"">如何（重新）启动 Docker 容器？</h3>
+<p>现在，我们来启动这个已停止的容器。这和运行一个容器有所区别。当你运行一个容器时，你将启动一个全新的容器。当你启动一个容器时，你将开始一个已经停止并保存了当时运行状态的容器。它将以停止时的状态重新开始运行。</p><!-- Crayon Syntax Highlighter v2.7.1.1 -->
+
+		<div id=""crayon-5b556224509e9027527891"" class=""crayon-syntax crayon-theme-github crayon-font-monaco crayon-os-pc print-yes notranslate"" data-settings="" minimize scroll-always"" style="" margin-top: 12px; margin-bottom: 12px; font-size: 13px !important; line-height: 15px !important;"">
+		
+			<div class=""crayon-toolbar"" data-settings="" show"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><span class=""crayon-title""></span>
+			<div class=""crayon-tools"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><div class=""crayon-button crayon-nums-button"" title=""切换是否显示行编号""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-plain-button"" title=""纯文本显示代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-wrap-button"" title=""切换自动换行""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-expand-button"" title=""点击展开代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-copy-button"" title=""复制代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-popup-button"" title=""在新窗口中显示代码""><div class=""crayon-button-icon""></div></div></div></div>
+			<div class=""crayon-info"" style=""min-height: 18.2px !important; line-height: 18.2px !important;""></div>
+			<div class=""crayon-plain-wrap""><textarea wrap=""soft"" class=""crayon-plain print-no"" data-settings=""dblclick"" readonly style=""-moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4; font-size: 13px !important; line-height: 15px !important;"">
+root@kerneltalks #  docker container start c46f2e9e4690
+c46f2e9e4690
+
+root@kerneltalks # docker container ls -a
+CONTAINER ID        IMAGE               COMMAND              CREATED             STATUS              PORTS                NAMES
+c46f2e9e4690        httpd               ""httpd-foreground""   35 minutes ago      Up 8 seconds        0.0.0.0:80-&gt;80/tcp   cranky_cori
+</textarea></div>
+			<div class=""crayon-main"" style="""">
+				<table class=""crayon-table"">
+					<tr class=""crayon-row"">
+				<td class=""crayon-nums "" data-settings=""show"">
+					<div class=""crayon-nums-content"" style=""font-size: 13px !important; line-height: 15px !important;""><div class=""crayon-num"" data-line=""crayon-5b556224509e9027527891-1"">1</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509e9027527891-2"">2</div><div class=""crayon-num"" data-line=""crayon-5b556224509e9027527891-3"">3</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509e9027527891-4"">4</div><div class=""crayon-num"" data-line=""crayon-5b556224509e9027527891-5"">5</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509e9027527891-6"">6</div><div class=""crayon-num"" data-line=""crayon-5b556224509e9027527891-7"">7</div></div>
+				</td>
+						<td class=""crayon-code""><div class=""crayon-pre"" style=""font-size: 13px !important; line-height: 15px !important; -moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4;""><div class=""crayon-line"" id=""crayon-5b556224509e9027527891-1""><span class=""crayon-v"">root</span><span class=""crayon-sy"">@</span><span class=""crayon-v"">kerneltalks</span><span class=""crayon-h""> </span><span class=""crayon-p"">#  docker container start c46f2e9e4690</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509e9027527891-2""><span class=""crayon-e"">c46f2e9e4690</span></div><div class=""crayon-line"" id=""crayon-5b556224509e9027527891-3""> </div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509e9027527891-4""><span class=""crayon-v"">root</span><span class=""crayon-sy"">@</span><span class=""crayon-v"">kerneltalks</span><span class=""crayon-h""> </span><span class=""crayon-p""># docker container ls -a</span></div><div class=""crayon-line"" id=""crayon-5b556224509e9027527891-5""><span class=""crayon-e"">CONTAINER </span><span class=""crayon-e"">ID        </span><span class=""crayon-e"">IMAGE               </span><span class=""crayon-e"">COMMAND              </span><span class=""crayon-e"">CREATED             </span><span class=""crayon-e"">STATUS              </span><span class=""crayon-e"">PORTS                </span><span class=""crayon-e"">NAMES</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509e9027527891-6""><span class=""crayon-e"">c46f2e9e4690        </span><span class=""crayon-i"">httpd</span><span class=""crayon-h"">               </span><span class=""crayon-s"">""httpd-foreground""</span><span class=""crayon-h"">   </span><span class=""crayon-cn"">35</span><span class=""crayon-h""> </span><span class=""crayon-e"">minutes </span><span class=""crayon-e"">ago      </span><span class=""crayon-i"">Up</span><span class=""crayon-h""> </span><span class=""crayon-cn"">8</span><span class=""crayon-h""> </span><span class=""crayon-i"">seconds</span><span class=""crayon-h"">        </span><span class=""crayon-cn"">0.0.0.0</span><span class=""crayon-o"">:</span><span class=""crayon-cn"">80</span><span class=""crayon-o"">-&gt;</span><span class=""crayon-cn"">80</span><span class=""crayon-o"">/</span><span class=""crayon-e"">tcp   </span><span class=""crayon-v"">cranky</span><span class=""crayon-sy"">_</span>cori</div><div class=""crayon-line"" id=""crayon-5b556224509e9027527891-7""> </div></div></td>
+					</tr>
+				</table>
+			</div>
+		</div>
+<!-- [Format Time: 0.0013 seconds] -->
+<p></p>
+<h3 id=""toc_8"">如何移除 Docker 容器？</h3>
+<p>我们使用 <code>rm</code> 命令来移除容器。你不可以移除运行中的容器。移除之前需要先停止容器。你可以使用 <code>-f</code> 参数搭配 <code>rm</code> 命令来强制移除容器，但并不推荐这么做。</p><!-- Crayon Syntax Highlighter v2.7.1.1 -->
+
+		<div id=""crayon-5b556224509ee480826842"" class=""crayon-syntax crayon-theme-github crayon-font-monaco crayon-os-pc print-yes notranslate"" data-settings="" minimize scroll-always"" style="" margin-top: 12px; margin-bottom: 12px; font-size: 13px !important; line-height: 15px !important;"">
+		
+			<div class=""crayon-toolbar"" data-settings="" show"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><span class=""crayon-title""></span>
+			<div class=""crayon-tools"" style=""font-size: 13px !important;height: 19.5px !important; line-height: 19.5px !important;""><div class=""crayon-button crayon-nums-button"" title=""切换是否显示行编号""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-plain-button"" title=""纯文本显示代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-wrap-button"" title=""切换自动换行""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-expand-button"" title=""点击展开代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-copy-button"" title=""复制代码""><div class=""crayon-button-icon""></div></div><div class=""crayon-button crayon-popup-button"" title=""在新窗口中显示代码""><div class=""crayon-button-icon""></div></div></div></div>
+			<div class=""crayon-info"" style=""min-height: 18.2px !important; line-height: 18.2px !important;""></div>
+			<div class=""crayon-plain-wrap""><textarea wrap=""soft"" class=""crayon-plain print-no"" data-settings=""dblclick"" readonly style=""-moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4; font-size: 13px !important; line-height: 15px !important;"">
+root@kerneltalks # docker container rm cranky_cori
+cranky_cori
+root@kerneltalks # docker container ls -a
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
+</textarea></div>
+			<div class=""crayon-main"" style="""">
+				<table class=""crayon-table"">
+					<tr class=""crayon-row"">
+				<td class=""crayon-nums "" data-settings=""show"">
+					<div class=""crayon-nums-content"" style=""font-size: 13px !important; line-height: 15px !important;""><div class=""crayon-num"" data-line=""crayon-5b556224509ee480826842-1"">1</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509ee480826842-2"">2</div><div class=""crayon-num"" data-line=""crayon-5b556224509ee480826842-3"">3</div><div class=""crayon-num crayon-striped-num"" data-line=""crayon-5b556224509ee480826842-4"">4</div><div class=""crayon-num"" data-line=""crayon-5b556224509ee480826842-5"">5</div></div>
+				</td>
+						<td class=""crayon-code""><div class=""crayon-pre"" style=""font-size: 13px !important; line-height: 15px !important; -moz-tab-size:4; -o-tab-size:4; -webkit-tab-size:4; tab-size:4;""><div class=""crayon-line"" id=""crayon-5b556224509ee480826842-1""><span class=""crayon-v"">root</span><span class=""crayon-sy"">@</span><span class=""crayon-v"">kerneltalks</span><span class=""crayon-h""> </span><span class=""crayon-p""># docker container rm cranky_cori</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509ee480826842-2""><span class=""crayon-e"">cranky_cori</span></div><div class=""crayon-line"" id=""crayon-5b556224509ee480826842-3""><span class=""crayon-v"">root</span><span class=""crayon-sy"">@</span><span class=""crayon-v"">kerneltalks</span><span class=""crayon-h""> </span><span class=""crayon-p""># docker container ls -a</span></div><div class=""crayon-line crayon-striped-line"" id=""crayon-5b556224509ee480826842-4""><span class=""crayon-e"">CONTAINER </span><span class=""crayon-e"">ID        </span><span class=""crayon-e"">IMAGE               </span><span class=""crayon-e"">COMMAND             </span><span class=""crayon-e"">CREATED             </span><span class=""crayon-e"">STATUS              </span><span class=""crayon-e"">PORTS               </span><span class=""crayon-i"">NAMES</span></div><div class=""crayon-line"" id=""crayon-5b556224509ee480826842-5""> </div></div></td>
+					</tr>
+				</table>
+			</div>
+		</div>
+<!-- [Format Time: 0.0007 seconds] -->
+<p>你看，一旦移除了容器，即使再使用 <code>ls -a</code> 命令也查看不到容器了。</p>
+<p> </p>
+
+        
+        
+        
+    <div class=""post-adds"">
+        <span data-post-id=""114145"" class="" btn-bluet-bigger href-style vote-post-up   register-user-only ""><i class=""fa  fa-thumbs-o-up""></i> <h10 id=""114145votetotal"">1</h10> 赞</span>
+        <span data-book-type=""1"" data-site-id=""2"" data-item-id=""114145"" data-item-type=""1"" class="" btn-bluet-bigger href-style bookmark-btn  register-user-only ""><i class=""fa fa-bookmark-o  ""></i>  收藏</span>
+
+                    <a href=""#article-comment""><span class=""btn-bluet-bigger href-style hide-on-480""><i class=""fa fa-comments-o""></i>  评论</span></a>
+        
+        
+        
+        <!-- JiaThis Button BEGIN -->
+        <div class=""jiathis_style_24x24"" style=""display: inline-flex; position: relative; margin: 0; clear: both;float: right;"">
+            <a class=""jiathis_button_tsina""></a>
+            <a class=""jiathis_button_weixin""></a>
+            <a class=""jiathis_button_qzone""></a>
+            <a class=""jiathis_button_fb hide-on-480""></a>
+            <a href=""http://www.jiathis.com/share?uid=1745061"" class=""jiathis jiathis_txt jiathis_separator jtico jtico_jiathis"" target=""_blank""></a>
+        </div>
+
+    </div>
+
+
+
+
+        <!-- BEGIN #author-bio -->
+
+
+<!-- END #author-bio -->
+	</div>",2018/06/22,,http://jbcdn2.b0.upaiyun.com/2018/06/91d1e9a10762cf7191f39f8e66ebefa7.png,1,"IT技术,Docker,Linux,容器",8 个基本的 Docker 容器管理命令,http://blog.jobbole.com/114145/,114145
+0,0,"<div class=""entry"">
+
+        			<div class=""textwidget""></div>
+		
+		<div class=""copyright-area"">本文由 <a href=""http://blog.jobbole.com"">伯乐在线</a> - <a href=""http://www.jobbole.com/members/wx232824506"">学以致用123</a> 翻译，<a href=""http://www.jobbole.com/members/liuchang"">刘唱</a> 校稿。未经许可，禁止转载！<br>英文出处：<a target=""_blank"" href=""https://codeblog.jonskeet.uk/2018/03/17/stack-overflow-culture/"">JONSKEET</a>。欢迎加入<a target=""_blank"" href=""http://group.jobbole.com/category/feedback/trans-team/"">翻译组</a>。</div><p>写这篇文章最直接的原因是我的朋友 Rob Conery 发了一条<a href=""https://twitter.com/robconery/status/974678531832610816"">推特</a>，解释他为什么放弃在 Stack Overflow 贡献答案。</p>
+<p>然而，那已经是很长时间的事了。前不久，我开始写一篇与本文类似的文章，但是文章越写越长，并且没有得出任何结论。现在我用一个小时的时间写这篇文章，然后不论写了什么都要发出去（稍后可能会重新排版）。</p>
+<p>我了解很多用户对 Stack Overflow 的复杂感情。有些人认为它完全没有价值，但是我相信更多的人认为它“资源有价值，但是潜在的反对意见让人很难做出贡献”。有些人则定期做出贡献，在合理的时间范围内，偶尔解释或者查看反对意见。</p>
+<p>这篇文章，我将谈谈我的经历，和我的一些看法，关于 Stack Overflow 存在的问题、我对一些察觉到的问题持反对态度、和如何改善目前的状况。下面是我希望在二月份拜访 Stack Overflow 团队时详细讨论的主题，但我们却忙于<a href=""https://stackoverflow.blog/2018/03/14/podcast-123-jon-skeet-wants-you-to-be-a-feminist/"">讨论其它重要问题</a>。</p>
+<p>在这篇文章中，我大部分讨论的是”提问者” 和 “回答者”，这是特意进行的简化。许多用户可能既是求助者又是回答者，我很多时候还会用不写答案但是用“view” 写评论的方式成为回答者。尽管任何用户都可以担任不同的角色，但是对提交的每个问题，每个人通常只有一个角色。当然还有其他的角色，例如“评论其它答案的评论者”，我不想花费过多的时间讨论这个问题。</p>
+<h3>目标和期望的差距</h3>
+<p>与生活中大多数事情相似，当所有人目标一致时 Stack Overflow 的表现最好，因为我们可以共同迈向那个目标。相反，当人们的目标不同时则通常会出现问题。</p>
+<p>对于 Stack Overflow 而言，最普遍的问题在于这两个目标的差异：</p>
+<ul>
+<li>– 提问者：尽量减少解决面临的问题所需要的时间</li>
+<li>– 回答者：最大限度地提高网站所有问题的价值，将网站视为长久的资源</li>
+</ul>
+<p>就我而言，我经常有一个“试图帮助提高软件工程师的诊断能力，使他们能够更好地解决自己的问题”的子目标。</p>
+<p>例如，考虑这个问题（编造的，但并不牵强） ：</p>
+<blockquote><p>Random 总是返回相同的数值，它出问题了吗？</p></blockquote>
+<p>在我看来这是一个低质量的问题（稍后我将对其进行详细讨论）。我基本知道哪里存在问题，但是为了达到我的目标我希望提问者改善这个问题，我希望看到他们的代码、结果等。如果我的答案是正确的（快速连续创建多个使用相同的基于系统时间的种子的 System.Random 的多个实例），那么这个问题很可能由于重复而被关闭，并且很可能被删除。以现在的形式，这个问题对网站没有任何好处。我不想没有确定是否重复之前就将这个问题以重复的原因关闭。</p>
+<p>现在，从提问者的角度来看，这些并不重要。如果他们知道我知道问题可能出现在哪，他们可能会认为我应该告诉他们，以便他们可以继续工作。如果现在就可以得到答案，为什么还需要花费 10 分钟来重现问题？更糟糕的是，如果他们花时间做了这些事情，然后由于重复的原因又立刻关闭这个问题，这样看上去很像在浪费时间。</p>
+<p>如果忽略情绪，我认为时间没有被浪费：</p>
+<ul>
+<li>– 提问者可以了解到，提出一个清晰的问题可以更快的得到答案。</li>
+<li>– 提问者可以了解到，搜索重复问题很有价值，因为这可能意味着根本不需要提出这个问题。</li>
+</ul>
+<p>但是我们都是普通人，忽略感情显然是个不可取的方法。在这种情况下可能发生的情况是 ( 即使我始终很有礼貌) 提问者会认为 Stack Overflow 中到处是只关心自己权利的“交警”。 我当然可以认为这是不公平的（虽然这可能会突出我的实际目标 ） 但这可能无法改变任何人的想法。</p>
+<p>因此，这是个问题。Stack Overflow 社区认同网站的目标，那么在用户提出问题时向用户明确说明网站的目标了吗？ 值得注意的是<a href=""https://stackoverflow.com/tour"">导航页面</a>(奇怪的是网站首页没有设置该链接) 包含以下内容：</p>
+<blockquote><p>在您的帮助下，我们正在共同努力，为每个关于编程的问题建立一个详细答案库。</p></blockquote>
+<p>我倾向于稍作更改：</p>
+<blockquote><p>Stack Overflow 的目标在于创建高质量的问题库以及问题的高质量答案库。</p></blockquote>
+<p>这真的是一个共同愿景吗？如果提问者意识到这点，会有帮助吗？我是希望如此，但是我怀疑它会阻止掉所有问题（我不认为有什么能做到阻止所有问题的提问，世界不是一个完美的地方）。</p>
+<p>让我们转到另一个我与其他人有不同意见的话题：低质量问题。</p>
+<h3>是的，存在低质量问题</h3>
+<p>即使不能以完全客观的方式衡量，我也敢肯定有高质量问题和低质量问题（还有很多介于中间的）。</p>
+<p>我认为 Stack Overflow 中这样的问题可以看做高质量问题：</p>
+<ul>
+<li>– 提出一个问题，并且明确知道该问题的要求。这个问题应该能够非常明显地看出答案是否回答了问题（这与答案是否正确无关）</li>
+<li>– 避免无关紧要。这可能很困难，但是我认为这是有效工作的一部分：如果在开发 web 应用程序时遇到问题，至少应该尝试确定 web 应用程序的上下文是否与问题有关。</li>
+<li>– 对其他人尽量有帮助。这是避免不相关因素的非常重要的原因。很多用户需要将字符串解析为日期。较少人需要使用 X 框架的 Y 版本通过定制及专有网络协议与 COBOL 编写的客户端交互时将字符串解析为日期。</li>
+<li>– 阐述提问者进行过的尝试、进展以及卡住的位置。</li>
+<li>– 在适当的情况下（通常情况）包含一个证明问题的小例子。</li>
+<li>– 格式正确。不要使用整页的段落，不要使用没有格式化的代码等等。</li>
+</ul>
+<p>Stack Overflow 上有很多符合所有这些要求的问题，或符合以上大部分要求的问题。</p>
+<p>我有理由认为这样的问题比另外一些问题质量高，一些问题可能只是一个家庭作业的照片。我曾经见过这样的问题，虽然，它们并不总是那么糟糕，但是我真的不知道如果这都不能认为是一个低质量的问题，我们还能达成什么一致意见。</p>
+<p>当然，在此之间还有很多问题——但我认为接受存在低质量问题的观点非常重要，或者至少经过讨论并找出不同意见。</p>
+<h3>经验有助于写出好问题，但并非绝对必要</h3>
+<p>我看过许多文章声称 Stack Overflow 对于新用户来讲过于困难，因为，新用户很难写出一个好问题。</p>
+<p>我认为接受网站协议并愿意为之付出努力的新人，至少能提出一个合理的问题。他们可能需要花费更长的时间进行研究并写出问题，而且写出的问题可能不会像有经验的人在相同情况下写出的问题那样简单。但是我相信，整体而言，新用户能够写出质量足够好的问题。他们可能没有意识到他们需要做什么或者为什么这样做，但这是一个拥有不同解决方案的问题。而不仅仅是”提问者可能是技术新手，所以我们需要回答没有任何帮助的糟糕问题”。</p>
+<p>一个稍稍不同的问题是用户是否具有写出真正优秀问题所需的诊断技能。这是一个<a href=""https://codeblog.jonskeet.uk/2017/08/17/diagnostics-everywhere/"">我非常重视的话题</a>，而且我真的希望有一个好的解决方案，但是我真的没有。我坚信，帮助程序员提高自己的诊断能力，除了在 Stack Overflow 中提出更好的问题之外，将对他们有巨大的好处。</p>
+<h3>一些用户在 Stack Overflow 的表现像个混蛋，但是大多数人不会这样</h3>
+<p>我当然不会宣称 Stack Overflow 社区是完美的。我看到过一些用户对提出低质量问题的人非常无理，我不是要为此进行申辩。如果你看我非常不礼貌，那么请阻止我。我不认为要求改进问题本身是粗鲁的，我们可以非常礼貌地要求改进问题，也可以非常刻薄地要求改进问题。我完全赞成提高 Stack Overflow 的文明水平，但是我认为这不能以牺牲网站质量为代价。</p>
+<p>我还经历过要求提问者提供更多信息时，提问者的反应非常无理的情况。这不是一个单向的问题。在这个方向上，我看到过比回答者更加粗鲁的行为。事实上，这些问题通常被关闭或删除，所以只是随便浏览网站的人通常不会看到这些。</p>
+<p>我的时间非常有限，所以我们来看最重要的一点，我们需要对彼此更友好。</p>
+<h3>Jon 的 Stack Overflow 宣誓</h3>
+<p>我故意把它称为<em>我的</em>宣誓，因为这不是将我的要求强加于他人的地方。如果你认为这也是你想遵循的原则（或许有一些修正），那再好不过了。如果 Stack Overflow 决定在网站指南的某个地方采用它，我非常欢迎，并且他们可以对其做任何适当的修改。</p>
+<p>从本质上来讲，我认为许多问题看起来像是提问者和回答者之间的一种交易。因此，建立一种契约是合理的（虽然这听起来更像是商业用语），因此，我倾向于使用一个诚心的宣誓。</p>
+<p><strong>作为一个回答者，我将…</strong></p>
+<ul>
+<li>不表现的像个混蛋。</li>
+<li>记住我正在回应的是人，是有感情的。</li>
+<li>认定我正在回应的人是诚心地希望得到帮助。</li>
+<li>要明确，对问题质量的评论不是对提问者的价值的指责。</li>
+<li>记住，有些时候，我正在回应的人可能会感到他们正在被指责，即使我不认为我有这个意思。</li>
+<li>要明确，评论如何改善问题时提出积极的具体建议，不要消极地强调现状。</li>
+<li>答案要清楚，记住不是每个人都与我的技术背景相同（所以有些术语可能需要链接等)。</li>
+<li>花点时间好好展示我的答案，使用尽可能易读的格式。</li>
+</ul>
+<p><strong>作为一个提问者，我将… </strong></p>
+<ul>
+<li>不表现的像个混蛋。</li>
+<li>记住任何一个回答问题的都是人类，都是有感情的。</li>
+<li>认定任何一个回答我问题的人都充满善意并试图帮助我。</li>
+<li>记住我是在要求其他人放弃自己的时间来帮助我解决问题。</li>
+<li>在提问之前先研究自己的问题、尽可能的缩小问题范围、给出尽可能详细的相关信息来减少回答问题的人需要花费的时间。</li>
+<li>花点时间好好提出自己的问题，使用尽可能易读的格式。</li>
+</ul>
+<p>我希望大部分时间我可以遵循这些誓言。我怀疑自己有时候做不到，所有希望通过明确的写出来，阅读它，使自己成为一个更好的社区成员。</p>
+<p>我认为如果每个人在 Stack Overflow 上发布任何内容之前都遵循这样的誓言，我们的社区将会更加美好。</p>
+
+        
+            <blockquote class=""rewards"">
+        <p><strong>打赏支持我翻译更多好文章，谢谢！</strong></p>
+        <a href=""#rewardbox"" id=""rewards-button"" class=""fancybox""><span class=""btn-bluet-blue href-style""><i class=""fa fa-jpy""></i> 打赏译者</span></a>
+    </blockquote>
+
+    <div id=""rewardbox"">
+        <h4>打赏支持我翻译更多好文章，谢谢！</h4>
+                <p>任选一种支付方式</p>
+                <p>
+                        <img src=""http://jbcdn2.b0.upaiyun.com/2016/10/11eefac5bf4ae36c73b7b40eb087be7b.jpg"">
+            
+                            <img src=""http://jbcdn2.b0.upaiyun.com/2016/10/02a9f7817f8dd0012ff1327fde5bdc94.jpg"">
+                    </p>
+    </div>
+
+    
+        
+    <div class=""post-adds"">
+        <span data-post-id=""114166"" class="" btn-bluet-bigger href-style vote-post-up   register-user-only ""><i class=""fa  fa-thumbs-o-up""></i> <h10 id=""114166votetotal"">1</h10> 赞</span>
+        <span data-book-type=""1"" data-site-id=""2"" data-item-id=""114166"" data-item-type=""1"" class="" btn-bluet-bigger href-style bookmark-btn  register-user-only ""><i class=""fa fa-bookmark-o  ""></i>  收藏</span>
+
+                    <a href=""#article-comment""><span class=""btn-bluet-bigger href-style hide-on-480""><i class=""fa fa-comments-o""></i>  评论</span></a>
+        
+        
+        
+        <!-- JiaThis Button BEGIN -->
+        <div class=""jiathis_style_24x24"" style=""display: inline-flex; position: relative; margin: 0; clear: both;float: right;"">
+            <a class=""jiathis_button_tsina""></a>
+            <a class=""jiathis_button_weixin""></a>
+            <a class=""jiathis_button_qzone""></a>
+            <a class=""jiathis_button_fb hide-on-480""></a>
+            <a href=""http://www.jiathis.com/share?uid=1745061"" class=""jiathis jiathis_txt jiathis_separator jtico jtico_jiathis"" target=""_blank""></a>
+        </div>
+
+    </div>
+
+
+
+
+        <!-- BEGIN #author-bio -->
+
+<div id=""author-bio"">
+	
+	<h3 class=""widget-title"">
+	关于作者：<a target=""_blank"" href=""http://www.jobbole.com/members/wx232824506"">学以致用123</a>
+	</h3>
+	<div class=""alignleft"">
+		<a target=""_blank"" href=""http://www.jobbole.com/members/wx232824506"">
+			<img src=""http://jbcdn2.b0.upaiyun.com/2015/04/8fbdaaa5ea6d3b49c8c1c825aafeb5d9.png"">
+		</a>
+	</div>
+
+    <div class=""author-bio-info"">
+
+        <span class=""author-bio-info-block"">
+            应用软件开发，主要用python、sql        </span>
+        <span class=""author-bio-info-block"">
+            <a href=""http://www.jobbole.com/members/wx232824506"" target=""_blank""><i class=""fa fa-user""></i> 个人主页</a> ·
+            <a href=""http://blog.jobbole.com/author/wx232824506/"" target=""_blank""><i class=""fa fa-file-text-o""></i> 我的文章</a>
+
+             · <a title=""声望值"" target=""_blank"" href=""http://www.jobbole.com/members/wx232824506/reputation/""><i class=""fa fa-graduation-cap""></i> 21</a>        </span>
+    </div>
+	<div class=""clear""></div>
+</div>
+
+<!-- END #author-bio -->
+	</div>",2018/07/09,,http://jbcdn2.b0.upaiyun.com/2016/03/6dd085bf97f82f786b71b4fbcdb37e88.jpg,1,"其他,StackOverflow",如何成为 StackOverflow 上合格的提问者与回答者,http://blog.jobbole.com/114166/,114166
+0,0,"<div class=""entry"">
+
+        			<div class=""textwidget""></div>
+		
+		<div class=""copyright-area"">原文出处： <a target=""_blank"" href=""https://www.oschina.net/news/97362/when-a-machine-fired-me"">达尔文</a>   </div><p>Ibrahim Diallo 发表了一篇博客，描述了自己认真地工作却被“强大”的机器系统强制解雇的真实经历，并表示，事情发生的从始至终都没有人能够阻止它。</p>
+<p>Diallo 在文中描述，自己在某天上班时，发现门卡失效，当他找到主管时，又意外发现了自己已经被解雇的邮件，却不知道是谁发的：</p>
+<p><img src=""http://wx1.sinaimg.cn/mw690/63918611gy1fsnj3dqw5ij20hj0cpn3g.jpg""></p>
+<p>Diallo 随后来到工作岗位，发现自己的 Jira（项目与事务跟踪工具）账号被禁用，当他找经理重新启用账号时，系统却不允许经理进行重新启用的操作。Diallo 回到办公桌前，发现系统提示他重启电脑，但他知道重启后会导致数据丢失，因此并未进行此操作，可 Windows 电脑最后却自动重启了，导致几十万条记录丢失，Web 界面也不响应了。</p>
+<p>随后 Diallo 用他 CentOS 的机器黑进他的服务器去重启，调试，重启所有访问，然后重新处理所有数据。</p>
+<p>后来问题终于得到解决，谈到整件事情的起因时，Diallo 解释道：</p>
+<blockquote><p>我的合同期限是三年，而我仅工作了八个月。原来在我被解雇之前，公司被一家更大的公司收购，而我正是在收购的过程中加入的。当时由于经理的疏忽，没有给我的合同续约，导致合同中止。</p>
+<p>而按照我们的系统设定，一旦员工合同中止的工作单发出后，系统就会接管一切。所有中止合同所需的工作单会自动发出，每个都会触发其他的工作单。于是就有了我的门卡失效，Windows 账号和 Jira 账号被禁用事情的发生，等等。</p>
+<p><strong>而这整个过程持续了好几天，期间却没有任何方法能人为中止。</strong>我只能以新员工的方式被重新雇佣，意味着我得重新填写各种文件，设置银行卡账号，等联邦快递给我发送新的门卡。</p></blockquote>
+<p>作者在文中将整个过程称为：<strong>一个简单的自动化错误/功能导致的雪崩。</strong>自动化也许给我们的生活和办公带来许多便利，但当机器犯错误时，人必须能够干预。如若不能，可能就会出现上面作者描述的情况，甚至会导致更加严重的问题。想详细了解事件发生的读者可以查看作者的<a href=""https://idiallo.com/blog/when-a-machine-fired-me"">博客原文</a>。</p>
+
+        
+        
+        
+    <div class=""post-adds"">
+        <span data-post-id=""114154"" class="" btn-bluet-bigger href-style vote-post-up   register-user-only ""><i class=""fa  fa-thumbs-o-up""></i> <h10 id=""114154votetotal"">1</h10> 赞</span>
+        <span data-book-type=""1"" data-site-id=""2"" data-item-id=""114154"" data-item-type=""1"" class="" btn-bluet-bigger href-style bookmark-btn  register-user-only ""><i class=""fa fa-bookmark-o  ""></i>  收藏</span>
+
+                    <a href=""#article-comment""><span class=""btn-bluet-bigger href-style hide-on-480""><i class=""fa fa-comments-o""></i>  评论</span></a>
+        
+        
+        
+        <!-- JiaThis Button BEGIN -->
+        <div class=""jiathis_style_24x24"" style=""display: inline-flex; position: relative; margin: 0; clear: both;float: right;"">
+            <a class=""jiathis_button_tsina""></a>
+            <a class=""jiathis_button_weixin""></a>
+            <a class=""jiathis_button_qzone""></a>
+            <a class=""jiathis_button_fb hide-on-480""></a>
+            <a href=""http://www.jiathis.com/share?uid=1745061"" class=""jiathis jiathis_txt jiathis_separator jtico jtico_jiathis"" target=""_blank""></a>
+        </div>
+
+    </div>
+
+
+
+
+        <!-- BEGIN #author-bio -->
+
+
+<!-- END #author-bio -->
+	</div>",2018/06/25,,http://wx1.sinaimg.cn/mw690/63918611gy1fsnj3dqw5ij20hj0cpn3g.jpg,1,"业界,自动化",工作 8 个月后，一名工程师竟然被机器解雇了,http://blog.jobbole.com/114154/,114154
