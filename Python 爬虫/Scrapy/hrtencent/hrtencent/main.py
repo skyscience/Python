@@ -12,3 +12,4 @@ print(os.path.dirname(os.path.abspath(__file__)))
 
 #启动爬虫
 execute(["scrapy","crawl","tencentJob"])
+

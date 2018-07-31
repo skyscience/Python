@@ -41,6 +41,6 @@ LOG_LEVEL = 'DEBUG'
 DOWNLOAD_DELAY = 1
 
 #配置ｒｅｄｉｓ数据库的ｉｐ（ｍａｓｔｅｒ端）
-REDIS_HOST = '192.168.1.111'
+REDIS_HOST = '192.168.15.110'
 #配置ｒｅｄｉｓ数据库的端口号(ｍａｓｔｅｒ端）
 REDIS_PORT = 6379
