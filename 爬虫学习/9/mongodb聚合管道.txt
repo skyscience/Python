@@ -1,0 +1,32 @@
+１．$group  实现分组显示
+db.集合名称.aggregate([{$group:{_id:'$依据的字段名',counter:{$sum:1}}}])
+db.集合名称.aggregate([{$group:{_id:'$依据的字段名',likes:{$sum:"$likes"}}}])
+db.集合名称.aggregate([{$group:{_id:'$依据的字段名',likes:{$avg:"$likes"}}}])
+db.集合名称.aggregate([{$group:{_id:'$依据的字段名',likes:{$min:"$likes"}}}])
+db.集合名称.aggregate([{$group:{_id:'$依据的字段名',likes:{$max:'$likes'}}}])
+db.集合名称.aggregate([{$group:{_id:'$依据的字段名',likes:{$first:'$likes'}}}])
+db.集合名称.aggregate([{$group:{_id:'$依据的字段名',likes:{$last:'$likes'}}}])
+
+2.$project 可以根据你的需求，返回需要显示的数据（定义文本的结构）
+db.集合名称.aggregate([{$project:{title:1,_id:0}}]) 显示ｔｉｔｌｅ，隐藏_ｉｄ
+db.集合名称.aggregate([{$project:{title:0}}]) 只隐藏ｔｉｔｌｅ，其他的都会给返回
+
+３．$match 根据条件进行筛选过滤
+db.集合名称.aggregate([{$match:{girls:{$gt:20,$lt:100}}}])
+db.集合名称.aggregate([{$match:{'name':'zhangsan'}}])
+
+4.$limit  限制查询
+db.集合名称.aggregate([{$limit:2}])
+
+5.$skip 跳过指定的条数
+db.集合名称.aggregate([{$skip:2}])
+
+#注意：$limit、$skip在基本操作中没有顺序，在聚合管道里面是有顺序的，一般情况下
+我们这么写db.集合名称.aggregate([{$skip:指定需要跳过的条数},{$limit:指定限制返回的条数}])
+
+6.$unwind 将文档中数组拆分成单条数据(这里tags表示的是一个数组)
+db.集合名称.aggregate([{$unwind:'$tags'}])
+
+
+#以上这些管道，同时可以在aggregate里面使用，如果在aggregate使用多个管道，
+那上一个管道处理的结果，会作为下一个管道的起始条件。

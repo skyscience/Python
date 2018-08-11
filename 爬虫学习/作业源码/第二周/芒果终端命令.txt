@@ -1,0 +1,48 @@
+
+
+# 1.启动mongodb服务
+sudo service mongodb start|sudo service mongod start
+
+
+# 2.连接mongodb数据库
+mongo
+
+
+# 3.退出mongodb数据库
+exit or ctrl+c
+
+
+# 4.停止mongodb服务
+sudo /etc/init.d/ mongod stop
+
+
+# 5.查看当前数据库
+db db.stats
+
+
+# 6.从当前数据库切换到班级数据库grade
+use.grade
+
+
+# 7.在grade数据库中创建一个集合class
+db.createCollection('class')
+
+
+# 8.查看当前数据库集合
+show collections
+
+
+# 9.再在grade数据库中创建一个集合classCollection
+db.createCollection('classCollection')
+
+
+# 10.删除集合classCollection
+db.classCollection.drop()
+
+
+# 11.查看当前数据库集合
+show 
+
+
+# 12.查看class数据库状态
+db.currentOp()
