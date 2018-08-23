@@ -1,9 +1,7 @@
 from django.db import models
+# Create your models here.
 
-class BookInfoManagr(models.Manager):
-    def get_queryset(self):
-        return super(BookInfoManagr,self).get_queryset().filter(pk=2)
-    
+
 class BookInfo(models.Model):
     btitle = models.CharField(max_length=20)
     bpub_date = models.DateTimeField()
@@ -11,23 +9,17 @@ class BookInfo(models.Model):
     bcommet = models.IntegerField(default=0)
     isDelete = models.BooleanField(default=False)
 
-    book = models.Manager()
-    book2 = BookInfoManagr()#会覆盖类的属性
-
-    @classmethod
-    def create(cls,title,pub_date):
-        # b = cls(btitle,bpub_date):
-        b.bread = 0
-        b.bcommet = 0
-        b.isDelete = False
-        return b
-
-
 class HeroInfo(models.Model):
     hname = models.CharField(max_length=20)
     hgender = models.BooleanField(default=True)
     isDelete = models.BooleanField(default=False)
     hcontent = models.CharField(max_length=100)
-    hBook = models.ForeignKey('Bookinfo',on_delete=models.PROTECT)
+    hBook = models.ForeignKey('Bookinfo',on_delete=models.PROTECT) 
 
-        
+    def gender(self):
+        if self.hgender:
+            return '男'
+        else:
+            return '女'
+
+    gender.short_description = '性别' #对应的属性

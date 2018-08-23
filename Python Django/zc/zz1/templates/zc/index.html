@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="keywords" content="天空科技,Minecraft,服务器,赞助" />
+	<meta name="description" content="为我们赞助" />
+	<!-- 自适应与手机 -->
+	<meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0">
+	<title>为我们赞助</title>
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,400">
+	<link rel="stylesheet" href="static/css/font-awesome.min.css">
+	<link rel="stylesheet" href="static/css/bootstrap.min.css">
+	<link rel="stylesheet" href="static/css/style.css" />
+	<link rel="stylesheet" href="static/css/templatemo-style.css">
+	<link rel="icon" href="static/img/head_logo.png" type="image/x-icon" />
+
+
+	<!-- 进度条 -->
+	<link href="http://cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="static/css/jdt.css">
+	<!-- 弹窗 -->
+	<link rel="stylesheet" type="text/css" href="static/css/tc.css">
+
+
+	<script>
+		var system = { win: false, mac: false, xll: false };
+		var p = navigator.platform;
+		system.win = p.indexOf("Win") == 0;
+		system.mac = p.indexOf("Mac") == 0;
+		system.x11 = (p == "X11") || (p.indexOf("Linux") == 0);
+
+		if (!system.win && !system.mac && !system.xll) {
+			// window.location.href="./pe.html"
+			// alert('建议您使用PC端访问.');
+		}
+	</script>
+</head>
+
+
+<body>
+	<!-- 赞助标题 -->
+	<h2 class="title1">
+		为我们的全新服务器做出贡献!
+	</h2>
+
+
+	<!-- 背景框架 -->
+	<div class="kj">
+		<center>
+
+			<!-- 服务器信息 -->
+			<div class="info">
+
+				<img class="yl1" src="static/img/4.jpg" alt="预览图" style="border-radius: 8px">
+				<div class="con">
+					<br>
+					<br>
+					<p class="con1">
+						惠普 DL360 G7 系列服务器, 装配了2个E5,核心数高达16核 还有16GB内存 和SSD.强大的服务器 将用于Minecraft服务器项目,
+						<br>以更好的提升性能.还有很多好处: 1.可以开设多个新的子服,例如起床战争 大逃杀等. 2.全面提升服务器性能,这样可以分担
+						<br>其它现有服务器的压力,为玩家带来更快 更流畅的体验. 3.可以增加更多插件,例如 粘液科技 枪械 RPG 等等. 以上只是个别
+						<br>针对服务器的. 还有更多发展余地,例如Mod 工业科技服务器, Unturned服务器.
+					</p>
+				</div>
+			</div>
+		</center>
+
+
+
+
+		<!-- 奖励 -->
+		<center>
+			<div class="count" style="margin-top: 60px;color: white;">
+				<img class="img1" src="static/img/3.png" alt="人数">
+				<h3 style="display: inline;">赞助奖励</h3>
+			</div>
+			<br>
+			<p style="color: white; font-size: 16px;">
+					赞助 > 6元，您将获得10天VIP1 + 5W金币 。<br>
+					赞助 > 15元，您将获得10天VIP3 +10W金币。<br>
+					赞助 > 30元，您将获得30天VIP2 + 12W金币。<br>
+					赞助 > 80元，您将获得20天VIPX + 10W金币 +神剑。<br>
+					赞助 > 100元，您将获得30天VIPX + 15W金币 +神剑。<br>
+					赞助 > 200元,  您将获得80天VIPX + 10W金币 + 神剑 + 神装。
+			</p>
+		</center>
+
+
+		<!-- 赞助人数 -->
+		<center>
+			<div class="count" style="margin-top: 60px; color: white;">
+				<img class="img1" src="static/img/2.png" alt="人数">
+				<h3 style="display: inline;">共 {{len}} 人赞助</h3>
+			</div>
+		</center>
+
+
+		<!-- 进度条 -->
+		<div class="jdt" id="jd1" style="display: flex;margin-top: 60px;">
+			<!-- 控制宽度 -->
+			<div class="col-md-offset-3 col-md-6">
+				<!-- 
+					红	progress-bar-danger 	30
+					黄 warning		50
+					蓝 info			70
+					绿 success		100
+				 -->
+				
+				<center><h3 class="jd1" style="color: white;">众筹进度: {{bfb}}%</h3></center>
+				<div class="progress">
+					<div class="progress-bar progress-bar-{{color}} progress-bar-striped active" style="width:{{bfb}}%;"></div>
+				</div>
+				<center><h3 class="jd" style="color: white;">{{sum}} / 1600</h3></center>
+			</div>
+		</div>
+
+
+		<!-- 按钮 -->
+		<center>
+			<button class="but1" id="open_btn">
+				点击赞助
+			</button>
+		</center>
+
+		<!-- 玩家名单 -->
+		<div class="player" style="margin-top: 40px;">
+			<center>
+				<h3 style="color: white;">赞助者名单:</h3>
+			</center>
+
+			<center>
+				<ul>
+					{%for book in player%}
+					<li>
+						{{book.player}}	-	￥ {{book.money}}
+					</li>
+					{%endfor%}
+					</ul>
+			</center>
+
+		</div>
+	</div>
+
+
+
+
+
+	<!-- ================================================= -->
+	<!-- 弹窗内容区 -->
+	<div id="background" class="back">
+		<div id="div1" class="content">
+			<div id="close">
+				<span id="close-button">×</span>
+				<h2 style="color: white;">&nbsp;赞助</h2>
+			</div>
+			<div id="div2">
+				<h3>扫码支付:</h3>
+				<center>
+					<img src="static/img/1.jpg" style="width: 1000px;height: 500px;">
+					<br>
+					<br>
+					<p>赞助成功后请将付款截图发送至服主 QQ: 2639358455 即可!</p>
+
+				</center>
+
+			</div>
+		</div>
+	</div> 
+	<!--页尾  -->
+	<div class="footer-link">
+		<p>Copyright © 2015 - 2018
+			<a rel="nofollow" href="http://skyscience.cn" target="_parent">skyscience</a>
+
+			<br> 京ICP备18031621号
+		</p>
+	</div>
+</body>
+
+<!-- 弹窗js -->
+<script>
+	var btn = document.getElementById('open_btn');
+	var div = document.getElementById('background');
+	var jd1 = document.getElementById('jd1')
+	var close = document.getElementById('close-button');
+
+	btn.onclick = function show() {
+		div.style.display = "block";
+	}
+
+	close.onclick = function close() {
+		div.style.display = "none";
+		// jd1.style.display = "none";
+	}
+
+	window.onclick = function close(e) {
+		if (e.target == div) {
+			div.style.display = "none";
+		}
+	}
+</script>
+
+</html>

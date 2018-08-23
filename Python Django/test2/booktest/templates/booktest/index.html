@@ -3,11 +3,12 @@
 <head>
     <title>首页</title>
 </head>
-
 <body>
+
     <h1>图书列表</h1>
+    <h3>图书数量: {{len}}</h3>
     <ul>
-        {%for book in booklist%}
+        {%for book in book_info%}
         <li>
             <a href="{{book.id}}">
                 {{book.btitle}}
@@ -15,5 +16,6 @@
         </li>
         {%endfor%}
     </ul>
+    
 </body>
 </html>

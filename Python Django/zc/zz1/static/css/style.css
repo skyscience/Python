@@ -1,0 +1,73 @@
+
+@font-face{
+    font-family: mc1;
+    src: url(../fonts/MinecraftCodeFont.ttf);
+}
+
+
+
+.jd, .jd1, li{
+    font-family: mc1;
+}
+
+
+
+.kj{
+    background: linear-gradient(to bottom right, rgb(15, 41, 198) , rgb(14, 165, 238));
+border-radius: 10px;
+margin: 80px 10% 60px 10%;
+padding: 40px 30px 21px 30px;
+box-shadow: 0px 0px 30px #666666;
+}
+
+.title1{
+    margin-top: 30px;
+    margin-bottom: -50px;
+    margin-left: 10px;
+}
+
+.yl1{
+    width: 100%;
+}
+
+
+.con{
+    display: inline-block;
+margin-left: 20px;
+}
+
+
+.con1{
+    color: white;
+    font-size: 16px;    
+}
+
+.img1{
+    width: 60px;
+height: 60px;
+margin-right: 20px;
+}
+
+
+
+
+.but1{
+    background-color: deeppink; /* Green */
+    border: none;
+    color: white;
+    padding: 15px 32px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    width: 200px;
+    border-radius: 10px;
+    margin-top: 40px;
+}
+
+li{
+    color: white;
+    list-style: none;
+    margin-left: -40px;
+    font-size: 16px;
+}
