@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>首页</title>
+</head>
+<body>
+
+    <h3>图书数量: {{len}}</h3>
+    <ul>
+    {%for book in book_info%}
+    <li>
+        <a href="{{book.id}}">
+        {{book.btitle}}
+        </a>
+    </li>
+    {%endfor%}
+    </ul>
+
+</body>
+</html>
