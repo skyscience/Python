@@ -9,7 +9,7 @@ def login():
 
     ip = '10.114.26.218'
     user = 'root'
-    passwd = '18201423398Hh'
+    passwd = '123456'
     database = 'test'
     charset = 'utf8'
     contact_1 = contact.mc(ip,user,passwd,database,charset)
